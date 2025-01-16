@@ -26,6 +26,10 @@ class User extends Authenticatable implements JWTSubject
         'fecha_nacimiento',
     ];
 
+    protected $hidden = [
+        'password',
+    ];
+
     public function imagen()
     {
         return $this->hasOne(ImageUser::class, 'id_usuario');

@@ -26,6 +26,17 @@ CREATE TABLE images_users (
     FOREIGN KEY (id_usuario) REFERENCES users(id) -- Relación con la tabla 'users'
 );
 
+CREATE TABLE images_portada_users (
+    id INT AUTO_INCREMENT PRIMARY KEY, -- ID autoincremental
+    id_usuario INT, -- ID del usuario relacionado
+    url VARCHAR(255) NOT NULL, -- URL de la imagen
+    tamaño INT NOT NULL, -- Tamaño de la imagen en bytes
+    extension VARCHAR(10) NOT NULL, -- Extensión de la imagen (por ejemplo, jpg, png)
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, -- Fecha de creación
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- Fecha de actualización automática
+    FOREIGN KEY (id_usuario) REFERENCES users(id) -- Relación con la tabla 'users'
+);
+
 CREATE TABLE images_publicaciones (
     id INT AUTO_INCREMENT PRIMARY KEY,  -- ID autoincremental
     id_usuario INT,  -- ID del usuario relacionado
@@ -92,3 +103,47 @@ CREATE TABLE usuarios_publicaciones_guardadas (
     FOREIGN KEY (id_publicacion) REFERENCES publicaciones(id),  -- Relación con la tabla 'publicaciones'
     FOREIGN KEY (user_id) REFERENCES users(id)  -- Relación con la tabla 'users'
 );
+
+CREATE TABLE users_codigos (
+    id_user INT AUTO_INCREMENT PRIMARY KEY,
+    codigo VARCHAR(255) NOT NULL,
+    create_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+CREATE TABLE users_tallas (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    remeras VARCHAR(10),
+    pantalones VARCHAR(10),
+    shorts VARCHAR(10),
+    vestidos VARCHAR(10),
+    abrigos VARCHAR(10),
+    calzados INT,
+    accesorios VARCHAR(50),
+    FOREIGN KEY (user_id) REFERENCES users(id) 
+);
+
+ALTER TABLE `publicaciones`
+ADD COLUMN `prenda` varchar(255) NOT NULL AFTER `estado_publicacion`,
+ADD COLUMN `talle` varchar(255) NOT NULL AFTER `prenda`,
+ADD COLUMN `marca` varchar(255) NOT NULL AFTER `talle`;
+
+CREATE TABLE `ropa` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `prenda` VARCHAR(255) NOT NULL,
+    PRIMARY KEY (`id`)
+)
+
+CREATE TABLE `ropa_categorias` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `category` VARCHAR(255) NOT NULL,
+    PRIMARY KEY (`id`)
+)
+
+ALTER TABLE `users`
+  DROP COLUMN `apellido`,  
+  DROP COLUMN `ubicacion_id`,   
+  DROP COLUMN `image_id`,   
+  ADD COLUMN `ubicacion` VARCHAR(255) AFTER `descripcion`, 
+  CHANGE `fecha_nacimiento` `fecha_nacimiento` TIMESTAMP NULL DEFAULT NULL;

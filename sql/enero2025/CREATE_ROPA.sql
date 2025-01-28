@@ -1,0 +1,6 @@
+
+CREATE TABLE `ropa` (
+    `id` INT NOT NULL AUTO_INCREMENT,
+    `prenda` VARCHAR(255) NOT NULL,
+    PRIMARY KEY (`id`)
+)

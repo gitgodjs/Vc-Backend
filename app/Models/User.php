@@ -1,4 +1,5 @@
 <?php
+
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -14,11 +15,10 @@ class User extends Authenticatable implements JWTSubject
     protected $fillable = [
         'correo',
         'password',
+        'username',
         'nombre',
-        'apellido',
         'descripcion',
-        'ubicacion_id',
-        'image_id',
+        'ubicacion',         
         'email_verified_at',
         'telefono',
         'red_social',
@@ -30,9 +30,14 @@ class User extends Authenticatable implements JWTSubject
         'password',
     ];
 
-    public function imagen()
+    public function imagenProfile()
     {
         return $this->hasOne(ImageUser::class, 'id_usuario');
+    }
+
+    public function imagenPortada()
+    {
+        return $this->hasOne(ImagePortadaUser::class, 'id_usuario');
     }
 
     public function publicaciones()
@@ -60,4 +65,3 @@ class User extends Authenticatable implements JWTSubject
         return []; 
     }
 }
-

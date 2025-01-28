@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class ImageUser extends Model
+class ImagePortadaUser extends Model
 {
     use HasFactory;
 
-    protected $table = 'images_users';
+    protected $table = 'images_portada_users';
 
     protected $fillable = [
         'id_usuario',

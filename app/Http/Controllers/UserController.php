@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use Carbon\Carbon;
 use App\Models\User;
+use App\Models\UsersTalla;
 use App\Models\UserCodigo;
 use Illuminate\Http\Request;
 use App\Mail\EmailCodeConfirmation;
@@ -111,10 +112,36 @@ class UserController extends Controller
             'telefono' => $request->telefono,
             'genero' => $request->genero,
         ]);
-    
+        
+        $user->save();
+
         return response()->json([
             'mensaje' => 'Perfil actualizado correctamente',
             'data' => $user,
         ]);
+    }
+
+    public function tallasUser(Request $request, $correo) 
+    {
+        $user = User::where('correo', $correo)->first();
+
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        };
+
+        $userTallas = UsersTalla::updateOrCreate(
+            ['user_id' => $user->id], 
+            [
+                'remeras' => $request->talleRemera,
+                'pantalones' => $request->tallePantalon,
+                'shorts' => $request->talleShort,
+                'trajes' => $request->talleTraje,
+                'abrigos' => $request->talleAbrigo,
+                'vestidos' => $request->talleVestido,
+                'calzados' => $request->talleCalzado,
+            ]
+        );
+
+        return response()->json(['message' => 'Tallas guardadas correctamente', "req" => $request], 200);
     }
 }

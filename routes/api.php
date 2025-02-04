@@ -16,8 +16,9 @@ Route::middleware('auth:api')->group(function () {
 
 
 //cambiar todas la de user que arranquen con user
-Route::get('crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
-Route::post('verificarCodigo/{correo}/{codigo}', [UserController::class, 'verficarCodigo']);
-Route::get('obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUserCorreo']);
-Route::post('user/completarPerfil/{correo}', [UserController::class, 'completarPerfil']);
+Route::get('user/crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
+Route::post('user/verificarCodigo/{correo}/{codigo}', [UserController::class, 'verficarCodigo']);
+Route::get('user/obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUserCorreo']);
+Route::post('user/actualizarPerfil/{correo}', [UserController::class, 'completarPerfil']);
+Route::post('user/actualizarTallas/{correo}', [UserController::class, 'tallasUser']);
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);

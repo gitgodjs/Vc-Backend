@@ -9,13 +9,14 @@ class UsersTalla extends Model
 {
     use HasFactory;
 
-    protected $table = 'users_tallas'; 
+    protected $table = 'users_tallas';
 
     protected $fillable = [
         'user_id',
         'remeras',
         'pantalones',
         'shorts',
+        'trajes',
         'vestidos',
         'abrigos',
         'calzados',

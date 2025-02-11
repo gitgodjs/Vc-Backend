@@ -80,16 +80,18 @@ class UserController extends Controller
 
     public function obtenerUserCorreo($correo) {
         $user = User::where("correo", $correo)->first();
+        
         if(!$user){
             return response()->json([
                 "mensaje" => "Usuario inexistente",
-            ]);
+                "code" => 400,
+            ], 400);
         };
 
         return response()->json([
             "mensaje" => "Usuario existente",
-            "user"=>$user,
-        ]);
+            "user" => $user,
+        ], 200);
     }
 
     public function completarPerfil(Request $request, $correo) {
@@ -121,7 +123,7 @@ class UserController extends Controller
         ]);
     }
 
-    public function tallasUser(Request $request, $correo) 
+    public function actualizarTallasUser(Request $request, $correo) 
     {
         $user = User::where('correo', $correo)->first();
 
@@ -143,5 +145,24 @@ class UserController extends Controller
         );
 
         return response()->json(['message' => 'Tallas guardadas correctamente', "req" => $request], 200);
+    }
+
+    public function obtenerTallasUser($user_id) {
+        $user = User::find($user_id);
+        $tallas = $user->tallas->prendas;
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado',
+                'code' => 404
+            ], 404);
+        };
+
+        return response()->json([
+            'tallas' => $tallas,
+            'code' => 200
+        ], 200);
+
+
     }
 }

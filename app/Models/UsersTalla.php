@@ -28,4 +28,18 @@ class UsersTalla extends Model
     {
         return $this->belongsTo(User::class, 'id_user');
     }
+
+    // Accesor para obtener solo las prendas
+    public function getPrendasAttribute()
+    {
+        return [
+            'remeras' => $this->remeras,
+            'pantalones' => $this->pantalones,
+            'shorts' => $this->shorts,
+            'trajes' => $this->trajes,
+            'vestidos' => $this->vestidos,
+            'abrigos' => $this->abrigos,
+            'calzados' => $this->calzados,
+        ];
+    }
 }

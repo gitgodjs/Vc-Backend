@@ -67,4 +67,26 @@ class ImageUserController extends Controller
             return response()->json(['message' => 'Error al actualizar la imagen', 'error' => $e->getMessage()], 500);
         }
     }
+
+    public function getImages($id, $portada = false) {
+        $user = User::find($id);
+        $image = $portada == false ? $user->imagenProfile : $user->imagenPortada;
+
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado',
+                'code' => 404
+            ], 404);
+        }
+
+        $baseUrl = env('APP_URL');
+    
+        $fullImageUrl = $baseUrl . "/storage/" . $image->url; 
+
+        return response()->json([
+            'mensaje' => 'Imagen encontrada',
+            'imageUrl' => $fullImageUrl,  
+        ]);
+    }
 }

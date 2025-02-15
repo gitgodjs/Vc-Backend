@@ -147,8 +147,8 @@ class UserController extends Controller
         return response()->json(['message' => 'Tallas guardadas correctamente', "req" => $request], 200);
     }
 
-    public function obtenerTallasUser($user_id) {
-        $user = User::find($user_id);
+    public function obtenerTallasUser($correo) {
+        $user = User::where("correo", $correo)->first();
         $tallas = $user->tallas->prendas;
         
         if (!$user) {

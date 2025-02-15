@@ -21,7 +21,7 @@ Route::post('user/verificarCodigo/{correo}/{codigo}', [UserController::class, 'v
 Route::get('user/obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUserCorreo']);
 Route::post('user/actualizarPerfil/{correo}', [UserController::class, 'completarPerfil']);
 Route::post('user/actualizarTallas/{correo}', [UserController::class, 'actualizarTallasUser']);
-Route::get('user/obtenerTallas/{user_id}', [UserController::class, 'obtenerTallasUser']);
+Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallasUser']);
 
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);
 Route::get('userImage/getImages/{id}/{portada}', [ImageUserController::class, 'getImages'] );

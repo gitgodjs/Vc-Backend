@@ -5,7 +5,8 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\ImageUserController;
-
+use App\Http\Controllers\PublicacionesController;
+use App\Http\Controllers\ImagePublicacionController;
 
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
@@ -25,3 +26,7 @@ Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallas
 
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);
 Route::get('userImage/getImages/{id}/{portada}', [ImageUserController::class, 'getImages'] );
+
+
+Route::post('publicaciones/crear/{user_id}', [PublicacionesController::class, 'crearPublicacion']);
+Route::post('publicacionImage/updateImage/{user_id}/{publicacion_id}', [ImagePublicacionController::class, 'updateImage']);

@@ -15,8 +15,14 @@ class Publicacion extends Model
         'id_user',
         'nombre',
         'descripcion',
-        'estado_producto',
-        'estado',
+        'estado_ropa',
+        'estado_publicacion',
+        'precio',
+        'categoria',
+        'prenda',
+        'talle',
+        'tipo',
+        'ubicacion',
     ];
 
     public function user()
@@ -24,9 +30,29 @@ class Publicacion extends Model
         return $this->belongsTo(User::class, 'id_user');
     }
 
-    public function estadoProducto()
+    public function estadoRopa()
     {
-        return $this->belongsTo(Estado::class, 'estado_producto');
+        return $this->belongsTo(EstadoRopa::class, 'estado_ropa');
+    }
+
+    public function estadoPublicacion()
+    {
+        return $this->belongsTo(EstadoPublicacion::class, 'estado_publicacion');
+    }
+
+    public function categoria()
+    {
+        return $this->belongsTo(Categoria::class, 'categoria');
+    }
+
+    public function prenda()
+    {
+        return $this->belongsTo(Prenda::class, 'prenda');
+    }
+
+    public function talle()
+    {
+        return $this->belongsTo(Talle::class, 'talle');
     }
 
     public function imagenes()

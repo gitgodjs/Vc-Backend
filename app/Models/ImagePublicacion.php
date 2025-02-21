@@ -16,6 +16,7 @@ class ImagePublicacion extends Model
         'id_publicacion',
         'url',
         'tamaño',
+        'nombre',
         'extension',
     ];
 

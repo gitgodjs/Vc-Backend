@@ -2,7 +2,6 @@ USE Vc;
 INSERT INTO publicaciones_tipo (nombre) VALUES 
 ('Ropa Superior'),
 ('Ropa Inferior'),
-('Ropa Interior'),
 ('Ropa de Abrigo'),
 ('Ropa Deportiva'),
 ('Ropa Formal / de Oficina'),
@@ -21,10 +20,13 @@ INSERT INTO estado_publicacion (estado) VALUES
 INSERT INTO estado_ropa (estado) VALUES 
 ('Nuevo'),
 ('Como Nuevo'),
-('Buen Estado'),
 ('Usado'),
-('Mal Estado'),
-('Muy Mal Estado');
+('Usado con detalle'),
+('Muy Usado'),
+('Restaurada'),
+('En Reparación'),
+('Antiguo');
+
 
 
 INSERT INTO `prendas` (`prenda`) VALUES

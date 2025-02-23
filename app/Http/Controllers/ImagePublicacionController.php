@@ -86,4 +86,31 @@ class ImagePublicacionController extends Controller
             'imageUrl' => $fullImageUrl,  
         ]);
     }
+
+    public function getImageById($publicacion_id) {
+        $publicacion = Publicacion::find($publicacion_id);
+        
+        if (!$publicacion) {
+            return response()->json([
+                'message' => 'Publicacion no encontrada',
+                'code' => 404
+            ], 404);
+        }
+
+        $image = ImagePublicacion::where("id_publicacion", $publicacion_id)->first();
+        
+        if (!$image) {
+            return response()->json([
+                'message' => 'No hay imagen',
+            ], 200);
+        }
+        $baseUrl = env('APP_URL');
+        $fullImageUrl = $baseUrl . "/storage/" . $image->url; 
+
+        return response()->json([
+            'mensaje' => 'Imagen encontrada',
+            'imageUrl' => $fullImageUrl,  
+        ]);
+    }
+
 }

@@ -29,4 +29,6 @@ Route::get('userImage/getImages/{id}/{portada}', [ImageUserController::class, 'g
 
 
 Route::post('publicaciones/crear/{user_id}', [PublicacionesController::class, 'crearPublicacion']);
+Route::get('publicaciones/getPublicacionesUser/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
+Route::get('publicaciones/getImageById/{publicacion_id}', [ImagePublicacionController::class, 'getImageById']);
 Route::post('publicacionImage/updateImage/{user_id}/{publicacion_id}', [ImagePublicacionController::class, 'updateImage']);

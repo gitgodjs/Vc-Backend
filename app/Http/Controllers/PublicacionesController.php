@@ -47,6 +47,89 @@ class PublicacionesController extends Controller
         ]);
     }
 
+    public function eliminarPublicacion(Request $request, $publicacion_id) {
+        $publicacion = Publicacion::find($publicacion_id);
+        
+        if(!$publicacion) {
+            return response()->json([
+                "mensaje" => "No existe la publicacion",
+                "code" => 404,
+            ], 404);
+        };
+
+        $publicacion->delete();
+
+        return response()->json([
+            "mensaje" => "Publicacion eliminada con exito",
+            "code" => 200,
+        ], 200);
+    }
+
+    public function getPublicacion($user_id, $publicacion_id) {
+        $publicacion = Publicacion::with(["imagenes"])->find($publicacion_id);
+    
+        if(!$publicacion) {
+            return response()->json([
+                "mensaje" => "No existe la publicacion",
+                "code" => 404,
+            ], 404);
+        };
+
+        $user = User::find($user_id);
+
+        $baseUrl = env('APP_URL');
+        $userPublicacion = User::with(["imagenProfile"])->find($publicacion->id_user);
+        $userPublicacion->imagen = $baseUrl . "/storage/" . $userPublicacion->imagenProfile->url;
+
+        if ($user->id == $publicacion->id_user) {
+            $itsMe = true;
+        } else {
+            $itsMe = false;
+            
+            $publicacion->visitas = $publicacion->visitas + 1;
+            $publicacion->save();
+        };
+
+        $imagenesUrls = [];
+        foreach ($publicacion->imagenes as $imagen) {
+            $imagenesUrls[] = $baseUrl . "/storage/" . $imagen->url;
+        };
+
+        $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
+        $prenda = Prendas::find($publicacion->prenda);
+        $categoria = RopaCategorias::find($publicacion->categoria);
+        $tipo = RopaTipo::find($publicacion->tipo);
+
+        Carbon::setLocale('es');
+
+        $publicacionFormateada = [
+            'id' => $publicacion->id,
+            'nombre' => $publicacion->nombre,
+            'descripcion' => $publicacion->descripcion,
+            'precio' => $publicacion->precio,
+            'imagenes' => $imagenesUrls,
+            'estado_publicacion' => $publicacion->estado_publicacion,
+            'estado_ropa' => $estado_ropa->estado,
+            'categoria' => $categoria->category,
+            'prenda' => $prenda->prenda,
+            'talle' => $publicacion->talle,
+            'tipo' => $tipo->tipo,
+            'ubicacion' => $publicacion->ubicacion,
+            'visitas' => $publicacion->visitas,
+            'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(), 
+            'fecha_original' => $publicacion->created_at,
+        ];
+        
+        return response()->json([
+            "mensaje" => "Publicación obtenida con éxito",
+            "publicacion" => $publicacionFormateada,
+            "userPublicacion" => $userPublicacion,
+            "itsMe" => $itsMe,
+            "publi" => $publicacion->id_user,
+            "publisad" => $user_id,
+        ], 200);
+    }
+
     public function getPublicacionesUser($user_id, $page) {
         $limit = 5;
         $user = User::find($user_id);

@@ -3,11 +3,13 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Model;
 
 class Publicacion extends Model
 {
     use HasFactory;
+    use SoftDeletes;
 
     protected $table = 'publicaciones';
 
@@ -23,6 +25,7 @@ class Publicacion extends Model
         'talle',
         'tipo',
         'ubicacion',
+        'visitas',
     ];
 
     public function user()
@@ -42,17 +45,22 @@ class Publicacion extends Model
 
     public function categoria()
     {
-        return $this->belongsTo(Categoria::class, 'categoria');
+        return $this->belongsTo(RopaCategorias::class, 'categoria');
     }
 
     public function prenda()
     {
-        return $this->belongsTo(Prenda::class, 'prenda');
+        return $this->belongsTo(Prendas::class, 'prenda');
     }
 
     public function talle()
     {
         return $this->belongsTo(Talle::class, 'talle');
+    }
+
+    public function tipo()
+    {
+        return $this->belongsTo(RopaTipo::class, 'tipo');
     }
 
     public function imagenes()

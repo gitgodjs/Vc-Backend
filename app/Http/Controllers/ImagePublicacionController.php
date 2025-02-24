@@ -62,8 +62,6 @@ class ImagePublicacionController extends Controller
             return response()->json(['message' => 'Error al actualizar las imágenes de portada', 'error' => $e->getMessage()], 500);
         }
     }
-    
-    
 
     public function getImages($id, $portada = false) {
         $user = User::find($id);

@@ -12,6 +12,7 @@ use App\Models\EstadoRopa;
 use App\Models\Publicacion;
 use App\Models\RopaCategorias;
 use Illuminate\Http\Request;
+use App\Models\ImagePublicacion;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -56,12 +57,55 @@ class PublicacionesController extends Controller
                 "code" => 404,
             ], 404);
         };
+        
+        $images_publicacion = ImagePublicacion::where("id_publicacion", $publicacion_id)->get();
+        foreach ($images_publicacion as $image) {
+            if (Storage::disk('public')->exists($image->url)) {
+                Storage::disk('public')->delete($image->url); 
+            }
+
+            $image->delete();
+        };
 
         $publicacion->delete();
 
         return response()->json([
             "mensaje" => "Publicacion eliminada con exito",
             "code" => 200,
+        ], 200);
+    }
+
+    public function editarPublicacion(Request $request, $publicacion_id) {
+        $publicacion = Publicacion::find($publicacion_id);
+
+        if(!$publicacion) {
+            return response()->json([
+                "mensaje" => "No existe la publicacion",
+                "code" => 404,
+            ], 404);
+        };
+
+        $categoria = RopaCategorias::find($request->categoria["id"]);
+        $estado = EstadoRopa::find($request->estado["id"]);
+        $prenda = Prendas::where("prenda", $request->prenda)->first();
+        $tipo = RopaTipo::where("tipo", $request->tipo["category"])->first();
+
+        $publicacion->update([
+            'nombre' => $request->titulo,
+            'descripcion' => $request->descripcion,
+            'ubicacion' => $request->ciudad,
+            'precio' => $request->precio,
+            'categoria' => $categoria->id,
+            'talle' => $request->talla["category"],
+            'tipo' => $tipo->id, 
+            'estado_ropa' => $estado->id,
+            'prenda' => $prenda->id,
+        ]);
+
+
+        return response()->json([
+            "mensaje" => "Publicacion actualizada con exito!",
+            "publicacion" => $publicacion
         ], 200);
     }
 
@@ -118,6 +162,7 @@ class PublicacionesController extends Controller
             'visitas' => $publicacion->visitas,
             'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(), 
             'fecha_original' => $publicacion->created_at,
+            'images_array' => $publicacion->imagenes,
         ];
         
         return response()->json([
@@ -125,8 +170,6 @@ class PublicacionesController extends Controller
             "publicacion" => $publicacionFormateada,
             "userPublicacion" => $userPublicacion,
             "itsMe" => $itsMe,
-            "publi" => $publicacion->id_user,
-            "publisad" => $user_id,
         ], 200);
     }
 

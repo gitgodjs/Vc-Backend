@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\Validator;
 
 class ImagePublicacionController extends Controller
 {
-    public function updateImage(Request $request, $user_id, $publicacion_id)
+    public function updateImage(Request $request, $publicacion_id)
     {
         $user = auth()->user();
     
@@ -21,7 +21,6 @@ class ImagePublicacionController extends Controller
             ], 404);
         }
     
-        // Verificar si la publicación existe
         $publicacion = Publicacion::find($publicacion_id);
         if (!$publicacion) {
             return response()->json([
@@ -31,37 +30,43 @@ class ImagePublicacionController extends Controller
         }
     
         try {
-            // Verificar si existen archivos en el request
+            $previousImages = ImagePublicacion::where('id_publicacion', $publicacion_id)->get();
+    
+            foreach ($previousImages as $image) {
+                if (Storage::disk('public')->exists($image->url)) {
+                    Storage::disk('public')->delete($image->url); 
+                }
+    
+                $image->delete();
+            };
+    
             if ($request->hasFile('publicacionPicture')) {
-                // Recoger todas las imágenes subidas
                 $images = $request->file('publicacionPicture');
     
                 foreach ($images as $imageFile) {
-                    // Generar el nombre de archivo y la ruta de almacenamiento
                     $filename = 'image_publicacion_' . time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
                     $path = $imageFile->storeAs('images_publicaciones', $filename, 'public');
                     $relativePath = 'images_publicaciones/' . $filename;
     
-                    // Crear el nuevo registro para cada imagen
                     ImagePublicacion::create([
-                        'id_usuario' => $user_id,
+                        'id_usuario' => $publicacion->id_user,
                         'id_publicacion' => $publicacion_id,
                         'url' => $relativePath,
                         'tamaño' => $imageFile->getSize(),
                         'nombre' => $imageFile->getClientOriginalName(),
                         'extension' => $imageFile->getClientOriginalExtension(),
                     ]);
-                }
+                };
     
                 return response()->json(['message' => 'Imágenes de portada actualizadas con éxito'], 200);
             } else {
                 return response()->json(['message' => 'No se encontraron imágenes'], 400);
-            }
+            };
     
         } catch (\Exception $e) {
             return response()->json(['message' => 'Error al actualizar las imágenes de portada', 'error' => $e->getMessage()], 500);
-        }
-    }
+        };
+    }        
 
     public function getImages($id, $portada = false) {
         $user = User::find($id);
@@ -109,6 +114,26 @@ class ImagePublicacionController extends Controller
             'mensaje' => 'Imagen encontrada',
             'imageUrl' => $fullImageUrl,  
         ]);
+    }
+
+    public function getFileImageById($image_id)
+    {
+        $imagen = ImagePublicacion::find($image_id);
+    
+        if(!$imagen){
+            return response()->json(['message' => 'Imagen no encontrada'], 404);
+        }
+    
+        $path = storage_path('app/public/' . $imagen->url);
+    
+        if (!file_exists($path)) {
+            return response()->json(['message' => 'Imagen no encontrada', 'path' => $path], 404);
+        }
+    
+        $file = file_get_contents($path);
+        $type = mime_content_type($path);
+    
+        return response($file, 200)->header('Content-Type', $type);
     }
 
 }

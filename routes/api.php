@@ -27,10 +27,11 @@ Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallas
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);
 Route::get('userImage/getImages/{id}/{portada}', [ImageUserController::class, 'getImages'] );
 
-
 Route::post('publicaciones/crear/{user_id}', [PublicacionesController::class, 'crearPublicacion']);
 Route::post('publicaciones/eliminar/{publicacion_id}', [PublicacionesController::class, 'eliminarPublicacion']);
+Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::class, 'editarPublicacion']);
 Route::get('publicaciones/getPublicacionesUser/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
 Route::get('publicaciones/getPublicacion/{user_id}/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
 Route::get('publicaciones/getImageById/{publicacion_id}', [ImagePublicacionController::class, 'getImageById']);
-Route::post('publicacionImage/updateImage/{user_id}/{publicacion_id}', [ImagePublicacionController::class, 'updateImage']);
+Route::get('publicacionImage/getFileImageById/{image_id}', [ImagePublicacionController::class, 'getFileImageById'] );
+Route::post('publicacionImage/updateImage/{publicacion_id}', [ImagePublicacionController::class, 'updateImage']);

@@ -13,23 +13,24 @@ use App\Models\Publicacion;
 use App\Models\RopaCategorias;
 use Illuminate\Http\Request;
 use App\Models\ImagePublicacion;
+use App\Models\PublicacionGuardada;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
-
+use Illuminate\Support\Facades\Validator;
 
 class PublicacionesController extends Controller
 {   
-    public function crearPublicacion(Request $request, $user_id)
+    public function crearPublicacion(Request $request)
     {
-        $user = User::find($user_id);
+        $user = auth()->user();
         $categoria = RopaCategorias::where("category", $request->categoria)->first();
         $prenda = Prendas::where("prenda", $request->prenda)->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
 
         $publicacion = Publicacion::create([
-            'id_user' => $user_id, 
+            'id_user' => $user->id, 
             'nombre' => $request->titulo,
             'descripcion' => $request->descripcion,
             'ubicacion' => $request->ciudad,
@@ -109,7 +110,7 @@ class PublicacionesController extends Controller
         ], 200);
     }
 
-    public function getPublicacion($user_id, $publicacion_id) {
+    public function getPublicacion($publicacion_id) {
         $publicacion = Publicacion::with(["imagenes"])->find($publicacion_id);
     
         if(!$publicacion) {
@@ -119,7 +120,7 @@ class PublicacionesController extends Controller
             ], 404);
         };
 
-        $user = User::find($user_id);
+        $user = auth()->user();
 
         $baseUrl = env('APP_URL');
         $userPublicacion = User::with(["imagenProfile"])->find($publicacion->id_user);
@@ -173,32 +174,43 @@ class PublicacionesController extends Controller
         ], 200);
     }
 
-    public function getPublicacionesUser($user_id, $page) {
+    public function getPublicacionesUser($user_id, $userProfile_id, $page) {
         $limit = 5;
-        $user = User::find($user_id);
+        $userProfile = User::find($userProfile_id);
     
-        if (!$user) {
+        if (!$userProfile) {
             return response()->json([
-                "mensaje" => "Usuario no encontrado"
+                "mensaje" => "Usuario no encontrado!"
             ], 404); 
         }
-    
+
+        $user = User::find($user_id);
+
         $offset = ($page - 1) * $limit;
     
-        $publicaciones = Publicacion::where("id_user", $user_id)
+        $publicaciones = Publicacion::where("id_user", $userProfile_id)
             ->skip($offset)
             ->take($limit)
             ->get();
     
         Carbon::setLocale('es');
         
-        $publicacionesFormateadas = $publicaciones->map(function ($publicacion) {
+        $publicacionesFormateadas = $publicaciones->map(function ($publicacion) use ($user) {
             $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
             $prenda = Prendas::find($publicacion->prenda);
             $categoria = RopaCategorias::find($publicacion->categoria);
             $tipo = RopaTipo::find($publicacion->tipo);
+            $guardada = false;
+            
+            if ($user) {
+                $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
+                    ->where('user_id', $user->id)
+                    ->exists();
+            };
+
             return [
                 'id' => $publicacion->id,
+                'id_creador' => $publicacion->id_user,
                 'nombre' => $publicacion->nombre,
                 'descripcion' => $publicacion->descripcion,
                 'precio' => $publicacion->precio,
@@ -212,10 +224,11 @@ class PublicacionesController extends Controller
                 'ubicacion' => $publicacion->ubicacion,
                 'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(), 
                 'fecha_original' => $publicacion->created_at, 
+                'guardada' => $guardada,
             ];
         });
 
-        $publicacionesTotales = Publicacion::where("id_user", $user_id)->count();
+        $publicacionesTotales = Publicacion::where("id_user", $userProfile_id)->count();
         $hasMore = ($publicacionesTotales > $offset + $limit);
             
         return response()->json([
@@ -223,8 +236,93 @@ class PublicacionesController extends Controller
             'publicaciones' => $publicacionesFormateadas,
             'publicacionesTotales' => $publicacionesTotales,
             'page' => $page,
-            'hasMore' => $hasMore,
+            'hasMore' => $hasMore
         ], 200);
+    } 
+    
+    public function getPublicacionesGuardadasUser($user_id, $userProfile_id, $page) {
+        $limit = 5;
+        $userProfile = User::find($userProfile_id);
+    
+        if (!$userProfile) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404); 
+        }
+
+        $user = User::find($user_id);
+
+        $offset = ($page - 1) * $limit;
+    
+        $publicacionesIds = PublicacionGuardada::where("user_id", $userProfile_id)
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    
+        Carbon::setLocale('es');
+        
+        $publicaciones = $publicacionesIds->map(function ($id) use ($user) {
+            $publicacion = Publicacion::find($id->id_publicacion);
+
+            return [
+                'id' => $publicacion->id,
+                'id_creador' => $publicacion->id_user,
+                'nombre' => $publicacion->nombre,
+                'descripcion' => $publicacion->descripcion,
+                'precio' => $publicacion->precio,
+                'imagen' => $publicacion->imagen,
+                'estado_publicacion' => $publicacion->estado_publicacion,
+                'ubicacion' => $publicacion->ubicacion,
+                'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(), 
+                'fecha_original' => $publicacion->created_at, 
+                'guardada' => true,
+            ];
+        });
+
+        $publicacionesTotales = Publicacion::where("id_user", $userProfile_id)->count();
+        $hasMore = ($publicacionesTotales > $offset + $limit);
+            
+        return response()->json([
+            'message' => 'Publicaciones obtenidas!',
+            'publicaciones' => $publicaciones,
+            'publicacionesTotales' => $publicacionesTotales,
+            'page' => $page,
+            'hasMore' => $hasMore
+        ], 200);
+    }
+
+    public function guardadosPublicacion(Request $request, $publicacion_id) {
+        $user = auth()->user();
+        $publicacion = Publicacion::find($publicacion_id);
+    
+        if(!$publicacion) {
+            return response()->json([
+                'message' => 'Error al obtener la publicacion!'
+            ], 404);
+        };
+
+        $guardada = PublicacionGuardada::where('id_publicacion', $publicacion_id)
+            ->where('user_id', $user->id)
+            ->first();
+        
+        $estaGuardada = $guardada ? true : false;
+        if(!$estaGuardada) {
+            $guardadar = PublicacionGuardada::create([
+                'id_publicacion' => $publicacion->id,
+                'user_id' => $user->id,
+            ]);
+
+            return response()->json([
+                'message' => 'Publicacion guardada!',
+                'publicacion' => $publicacion,
+                'guardadar' => $guardadar
+            ], 200);
+        } else {
+            $guardada->delete();
+            return response()->json([
+                'message' => 'Publicacion quitada de guardados!',
+            ], 200);
+        };
     }
     
 }

@@ -5,11 +5,11 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class UsuarioPublicacionGuardada extends Model
+class PublicacionGuardada extends Model
 {
     use HasFactory;
 
-    protected $table = 'usuarios_publicaciones_guardadas';
+    protected $table = 'publicaciones_guardadas';
 
     protected $fillable = [
         'id_publicacion',

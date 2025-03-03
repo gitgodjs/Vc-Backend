@@ -110,7 +110,7 @@ class PublicacionesController extends Controller
         ], 200);
     }
 
-    public function getPublicacion($publicacion_id) {
+    public function getPublicacion($user_id, $publicacion_id) {
         $publicacion = Publicacion::with(["imagenes"])->find($publicacion_id);
     
         if(!$publicacion) {
@@ -120,7 +120,7 @@ class PublicacionesController extends Controller
             ], 404);
         };
 
-        $user = auth()->user();
+        $user = User::find($user_id);
 
         $baseUrl = env('APP_URL');
         $userPublicacion = User::with(["imagenProfile"])->find($publicacion->id_user);
@@ -149,6 +149,7 @@ class PublicacionesController extends Controller
 
         $publicacionFormateada = [
             'id' => $publicacion->id,
+            'id_creador' => $publicacion->id_user,
             'nombre' => $publicacion->nombre,
             'descripcion' => $publicacion->descripcion,
             'precio' => $publicacion->precio,
@@ -240,7 +241,7 @@ class PublicacionesController extends Controller
         ], 200);
     } 
     
-    public function getPublicacionesGuardadasUser($user_id, $userProfile_id, $page) {
+    public function getPublicacionesGuardadasProfile($user_id, $userProfile_id, $page) {
         $limit = 5;
         $userProfile = User::find($userProfile_id);
     
@@ -323,6 +324,56 @@ class PublicacionesController extends Controller
                 'message' => 'Publicacion quitada de guardados!',
             ], 200);
         };
+    }
+
+    public function getPublicacionesGuardadasHome(Request $request, $user_id, $page) {
+        $user = auth()->user();
+    
+        if(!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado!',
+            ], 404);
+        };
+    
+        $limit = 5;
+        $offset = ($page - 1) * $limit;
+    
+        $publicacionesTotales = PublicacionGuardada::where("user_id", $user_id)->count();
+        
+        $publicacionesIds = PublicacionGuardada::where("user_id", $user_id)
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    
+        Carbon::setLocale('es');
+        
+        $publicaciones = $publicacionesIds->map(function ($item) use ($user) { 
+            $publicacion = Publicacion::find($item->id_publicacion); 
+    
+            return [
+                'id' => $publicacion->id,
+                'id_creador' => $publicacion->id_user,
+                'nombre' => $publicacion->nombre,
+                'descripcion' => $publicacion->descripcion,
+                'precio' => $publicacion->precio,
+                'imagen' => $publicacion->imagen,
+                'estado_publicacion' => $publicacion->estado_publicacion,
+                'ubicacion' => $publicacion->ubicacion,
+                'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(), 
+                'fecha_original' => $publicacion->created_at, 
+                'guardada' => true,
+            ];
+        });
+    
+        $hasMore = ($publicacionesTotales > $offset + $limit);
+            
+        return response()->json([
+            'message' => 'Publicaciones obtenidas!',
+            'publicaciones' => $publicaciones,
+            'publicacionesTotales' => $publicacionesTotales,
+            'page' => $page,
+            'hasMore' => $hasMore
+        ], 200);
     }
     
 }

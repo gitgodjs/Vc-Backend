@@ -90,7 +90,7 @@ class ImagePublicacionController extends Controller
         ]);
     }
 
-    public function getImageById($publicacion_id) {
+    public function getPubImageById($publicacion_id) {
         $publicacion = Publicacion::find($publicacion_id);
         
         if (!$publicacion) {

@@ -149,7 +149,6 @@ class UserController extends Controller
 
     public function obtenerTallasUser($correo) {
         $user = User::where("correo", $correo)->first();
-        $tallas = $user->tallas->prendas;
         
         if (!$user) {
             return response()->json([
@@ -158,11 +157,25 @@ class UserController extends Controller
             ], 404);
         };
 
+        if($user->tallas != null) {
+            $tallas = $user->tallas->prendas;
+        } else {
+            $tallas = $user->tallas;
+        };
+        
+        $tallas = [
+            'remeras' => $tallas['remeras'] ?? null,
+            'pantalones' => $tallas['pantalones'] ?? null,
+            'shorts' => $tallas['shorts'] ?? null,
+            'abrigos' => $tallas['abrigos'] ?? null,
+            'calzados' => $tallas['calzados'] ?? null,
+            'trajes' => $tallas['trajes'] ?? null,
+            'vestidos' => $tallas['vestidos'] ?? null,
+        ];
+
         return response()->json([
             'tallas' => $tallas,
             'code' => 200
         ], 200);
-
-
     }
 }

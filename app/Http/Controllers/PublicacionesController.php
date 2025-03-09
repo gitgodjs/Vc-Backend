@@ -399,6 +399,8 @@ class PublicacionesController extends Controller
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
+                'precio' => $publicacion->precio,
+                'ubicacion' => $publicacion->ubicacion,
                 'imagen' => $publicacion->imagen,
                 'guardada' => $guardada,
             ];
@@ -442,6 +444,8 @@ class PublicacionesController extends Controller
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
+                'precio' => $publicacion->precio,
+                'ubicacion' => $publicacion->ubicacion,
                 'imagen' => $publicacion->imagen,
                 'guardada' => true,
             ];
@@ -491,13 +495,12 @@ class PublicacionesController extends Controller
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
+                'precio' => $publicacion->precio,
+                'ubicacion' => $publicacion->ubicacion,
                 'imagen' => $publicacion->imagen,
                 'guardada' => $guardada,
             ];
         });
-
-        // Desordenar
-        $publicaciones = $publicaciones->shuffle();
     
         $hasMore = ($publicacionesTotales > $offset + $limit);
             
@@ -516,10 +519,12 @@ class PublicacionesController extends Controller
         
         $user = auth()->user();
         $categoria = RopaCategorias::where("category", $request->categoria)->first();
-    
+        $publicacion = Publicacion::find($request->id);
+
         $publicaciones = Publicacion::where("categoria", $categoria->id)
-            ->when($user, function ($query, $user) {
-                return $query->where("id_user", "!=", $user->id);
+            ->when($user, function ($query) use ($user, $publicacion) {
+                return $query->where("id_user", "!=", $user->id)
+                    ->where("id", "!=", $publicacion->id);
             })
             ->skip($offset)
             ->take($limit)
@@ -545,6 +550,8 @@ class PublicacionesController extends Controller
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
                 'categoria' => $categoria->category,
+                'precio' => $publicacion->precio,
+                'ubicacion' => $publicacion->ubicacion,
                 'imagen' => $publicacion->imagen,
                 'guardada' => $guardada,
             ];
@@ -567,4 +574,74 @@ class PublicacionesController extends Controller
         ], 200);
     }
 
+    public function getPublicacionesFiltro(Request $request) {
+        $user = auth()->user();
+    
+        if(!$user) {
+            return response()->json(["mensaje" => "Usuario no encontrado"], 404);
+        }
+
+        // Luego se acomodara en orden de cantidad de ventas
+        $users = User::where("username", "!=", null)->with(["imagenProfile"])->get();
+    
+        $query = Publicacion::whereNull('deleted_at');
+        $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search']);
+        
+        foreach ($filters as $key => $value) {
+            if (!empty($value)) {
+                switch ($key) {
+                    case 'prenda':
+                        $prenda = Prendas::where('prenda', $value)->first();
+                        if (!$prenda) {
+                            return response()->json([
+                                "mensaje" => "Prenda no encontrada",
+                                "publicaciones" => []
+                            ], 200);
+                        }
+                        $query->where('prenda', $prenda->id);
+                        break;
+                        
+                    case 'talla':
+                        $query->where('talle', $value);
+                        break;
+                        
+                    case 'ciudad':
+                        $query->where('ubicacion', $value);
+                        break;
+                        
+                    case 'categoria':
+                        $query->where('categoria', $value);
+                        break;
+                    case 'search':
+                        $searchWords = explode(' ', $value);
+                        
+                        foreach ($searchWords as $word) {
+                            $query->where('nombre', 'LIKE', '%' . trim($word) . '%');
+                        }
+                        break;
+                };
+            };
+        };
+        
+        $perPage = 10;
+        $page = $request->input('page', 1);
+        
+        $publicaciones = $query->with(['imagenes'])
+            ->paginate($perPage, ['*'], 'page', $page);
+        
+        foreach ($publicaciones as $publicacion) {
+            $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
+                ->where('user_id', $user->id)
+                ->exists(); 
+
+            $publicacion->guardada = $guardada;
+        }
+        return response()->json([
+            "mensaje" => "Obtenidas",
+            "users" => $users,
+            "publicaciones" => $publicaciones->items(),
+            "hasMore" => $publicaciones->hasMorePages(),
+            "publicacionesTotales" => $publicaciones->total()
+        ], 200);
+    }
 }

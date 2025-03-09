@@ -89,4 +89,31 @@ class ImageUserController extends Controller
             'imageUrl' => $fullImageUrl,  
         ]);
     }
+
+    public function getUserImageById($user_id) {
+        $user = User::find($user_id);
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Publicacion no encontrada',
+                'code' => 404
+            ], 404);
+        }
+
+        $image = ImageUser::where("id_usuario", $user_id)->first();
+        
+        if (!$image) {
+            return response()->json([
+                'message' => 'No hay imagen',
+            ], 200);
+        }
+
+        $baseUrl = env('APP_URL');
+        $fullImageUrl = $baseUrl . "/storage/" . $image->url; 
+
+        return response()->json([
+            'mensaje' => 'Imagen encontrada',
+            'imageUrl' => $fullImageUrl,  
+        ]);
+    }
 }

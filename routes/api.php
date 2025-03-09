@@ -27,7 +27,7 @@ Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallas
 // Imagenes de usuarios
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);
 Route::get('userImage/getImages/{id}/{portada}', [ImageUserController::class, 'getImages'] );
-
+Route::get('userImage/getUserImageById/{user_id}', [ImageUserController::class, 'getUserImageById'] );
 
 
 // Generales de publicacion 
@@ -45,13 +45,15 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     Route::get('publicaciones/getPublicacionesUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
     Route::get('publicaciones/getPublicacionesGuardadasProfile/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
 
-    Route::get('publicaciones/getPublicacion/{user_id}/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
-
+    // Para buscador
+    Route::post('publicaciones/getPublicacionesFiltro/{page}', [PublicacionesController::class, 'getPublicacionesFiltro']);
+    
     // Para cada publicacion
+    Route::get('publicaciones/getPublicacion/{user_id}/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
     Route::post('publicaciones/guardados/{publicacion_id}', [PublicacionesController::class, 'guardadosPublicacion']);
     Route::post('publicaciones/getPublicacionesCategoria/{page}', [PublicacionesController::class, 'getPublicacionesCategoria']);
 
 // Imagenes de publicacion
-Route::get('publicaciones/getImageById/{publicacion_id}', [ImagePublicacionController::class, 'getImageById']);
+Route::get('publicaciones/getImageById/{publicacion_id}', [ImagePublicacionController::class, 'getPubImageById']);
 Route::get('publicacionImage/getFileImageById/{image_id}', [ImagePublicacionController::class, 'getFileImageById'] );
 Route::post('publicacionImage/updateImage/{publicacion_id}', [ImagePublicacionController::class, 'updateImage']);

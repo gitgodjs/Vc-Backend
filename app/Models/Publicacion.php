@@ -63,6 +63,11 @@ class Publicacion extends Model
         return $this->belongsTo(RopaTipo::class, 'tipo');
     }
 
+    public function imagen()
+    {
+        return $this->hasOne(ImagePublicacion::class, 'id_publicacion')->oldest();    
+    }
+
     public function imagenes()
     {
         return $this->hasMany(ImagePublicacion::class, 'id_publicacion');

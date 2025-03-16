@@ -178,4 +178,34 @@ class UserController extends Controller
             'code' => 200
         ], 200);
     }
+
+    public function getUsers(Request $request) {
+        $user = auth()->user();
+        
+        if(!$user) {
+            return response()->json(["mensaje" => "Usuario no encontrado"], 404);
+        };
+    
+        $query = User::whereNotNull('username');
+
+        if ($request->has('search') && !empty($request->search)) {
+            $searchTerm = trim($request->search);
+            $query->where(function ($q) use ($searchTerm) {
+                $q->where('username', 'LIKE', $searchTerm . '%') 
+                ->orWhere('nombre', 'LIKE', '%' . $searchTerm . '%');
+            });
+        };
+    
+        $perPage = 10;
+        $page = $request->input('page', 1);
+        $users = $query->with(['imagenProfile'])
+            ->paginate($perPage, ['*'], 'page', $page);
+        
+        return response()->json([
+            "mensaje" => "usuarios obtenidos con exito",
+            "users" => $users->items(),
+            "hasMore" => $users->hasMorePages(),
+            "usersTotales" => $users->total(),
+        ]);
+    }
 }

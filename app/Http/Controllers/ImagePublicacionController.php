@@ -3,8 +3,8 @@
 namespace App\Http\Controllers;
 
 use App\Models\Publicacion;
-use App\Models\ImagePublicacion;
 use Illuminate\Http\Request;
+use App\Models\ImagePublicacion;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 
@@ -113,6 +113,25 @@ class ImagePublicacionController extends Controller
         return response()->json([
             'mensaje' => 'Imagen encontrada',
             'imageUrl' => $fullImageUrl,  
+        ]);
+    }
+
+    public function getImagesById(Request $request) {
+        $publicaciones = collect($request->publicaciones); 
+        
+        $baseUrl = env('APP_URL');
+        
+        $publicacionesTransformadas = $publicaciones->map(function ($pub) use ($baseUrl) {
+            $pub['imagenUrl'] = isset($pub['imagenUrl']['url']) 
+                ? $baseUrl . "/storage/" . $pub['imagenUrl']['url']
+                : null;
+            
+            return $pub;
+        });
+    
+        return response()->json([
+            'mensaje' => 'Imágenes procesadas',
+            "publicaciones" => $publicacionesTransformadas,
         ]);
     }
 

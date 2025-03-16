@@ -116,4 +116,23 @@ class ImageUserController extends Controller
             'imageUrl' => $fullImageUrl,  
         ]);
     }
+
+    public function getImagesById(Request $request) {
+        $users = collect($request->users); 
+        
+        $baseUrl = env('APP_URL');
+        
+        $usersTransformados = $users->map(function ($user) use ($baseUrl) {
+            $user['imagen_profile'] = isset($user['imagen_profile']['url']) 
+                ? $baseUrl . "/storage/" . $user['imagen_profile']['url']
+                : null;
+            
+            return $user;
+        });
+    
+        return response()->json([
+            'mensaje' => 'Imágenes procesadas',
+            "users" => $usersTransformados,
+        ]);
+    }
 }

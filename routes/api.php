@@ -23,11 +23,13 @@ Route::get('user/obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUs
 Route::post('user/actualizarPerfil/{correo}', [UserController::class, 'completarPerfil']);
 Route::post('user/actualizarTallas/{correo}', [UserController::class, 'actualizarTallasUser']);
 Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallasUser']);
+Route::post('user/getUsers/{page}', [UserController::class, 'getUsers']);
 
 // Imagenes de usuarios
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);
 Route::get('userImage/getImages/{id}/{portada}', [ImageUserController::class, 'getImages'] );
 Route::get('userImage/getUserImageById/{user_id}', [ImageUserController::class, 'getUserImageById'] );
+Route::post('userImage/getImagesById', [ImageUserController::class, 'getImagesById']);
 
 
 // Generales de publicacion 
@@ -40,9 +42,8 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     Route::post('publicaciones/getPublicacionesRecomendadas/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesRecomendadas']);
     Route::post('publicaciones/getPublicacionesGuardadasHome/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasHome']);
     Route::post('publicaciones/getPublicacionesExplorar/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
-    Route::get('publicaciones/getPresentacion', [PublicacionesController::class, 'getPresentacion']);
     // Para perfil
-    Route::get('publicaciones/getPublicacionesUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
+    Route::post('publicaciones/getPublicacionesUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
     Route::get('publicaciones/getPublicacionesGuardadasProfile/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
 
     // Para buscador
@@ -57,3 +58,4 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
 Route::get('publicaciones/getImageById/{publicacion_id}', [ImagePublicacionController::class, 'getPubImageById']);
 Route::get('publicacionImage/getFileImageById/{image_id}', [ImagePublicacionController::class, 'getFileImageById'] );
 Route::post('publicacionImage/updateImage/{publicacion_id}', [ImagePublicacionController::class, 'updateImage']);
+Route::post('publicacionesImage/getImagesById', [ImagePublicacionController::class, 'getImagesById']);

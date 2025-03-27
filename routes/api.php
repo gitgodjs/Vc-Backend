@@ -16,14 +16,18 @@ Route::middleware('auth:api')->group(function () {
     Route::get('get_credentials_from_token', [AuthController::class, 'get_credentials_from_token']);
 });
 
-// Especificos usuarios
-Route::get('user/crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
-Route::post('user/verificarCodigo/{correo}/{codigo}', [UserController::class, 'verficarCodigo']);
+// Data users sin token
 Route::get('user/obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUserCorreo']);
-Route::post('user/actualizarPerfil/{correo}', [UserController::class, 'completarPerfil']);
-Route::post('user/actualizarTallas/{correo}', [UserController::class, 'actualizarTallasUser']);
 Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallasUser']);
 Route::post('user/getUsers/{page}', [UserController::class, 'getUsers']);
+
+// Data para uno mismo (users token)
+Route::get('user/crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
+Route::post('user/verificarCodigo/{correo}/{codigo}', [UserController::class, 'verficarCodigo']);
+Route::get('user/obtenerUserToken', [UserController::class, 'obtenerUserToken']);
+Route::post('user/actualizarTallas', [UserController::class, 'actualizarTallasUser']);
+Route::post('user/actualizarPerfil', [UserController::class, 'completarPerfil']);
+
 
 // Imagenes de usuarios
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);

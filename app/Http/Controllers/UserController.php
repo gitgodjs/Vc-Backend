@@ -87,15 +87,50 @@ class UserController extends Controller
                 "code" => 400,
             ], 400);
         };
-
+    
+        $baseUrl = env('APP_URL');
+    
+        if ($user->imagenPortada) {
+            $user->foto_portada_url = $baseUrl . "/storage/" . $user->imagenPortada->url;
+        }
+    
+        if ($user->imagenProfile) {
+            $user->foto_perfil_url = $baseUrl . "/storage/" . $user->imagenProfile->url;
+        };
+    
         return response()->json([
             "mensaje" => "Usuario existente",
             "user" => $user,
         ], 200);
     }
 
-    public function completarPerfil(Request $request, $correo) {
-        $user = User::where("correo", $correo)->first();
+    public function obtenerUserToken() {
+        $user = auth()->user();
+        
+        if(!$user){
+            return response()->json([
+                "mensaje" => "Usuario inexistente",
+            ]);
+        };
+
+        $baseUrl = env('APP_URL');
+    
+        if ($user->imagenPortada) {
+            $user->foto_portada_url = $baseUrl . "/storage/" . $user->imagenPortada->url;
+        }
+    
+        if ($user->imagenProfile) {
+            $user->foto_perfil_url = $baseUrl . "/storage/" . $user->imagenProfile->url;
+        };
+    
+        return response()->json([
+            "mensaje" => "Usuario existente",
+            "user" => $user,
+        ], 200);
+    }
+
+    public function completarPerfil(Request $request) {
+        $user = auth()->user();
         if(!$user){
             return response()->json([
                 "mensaje" => "Usuario inexistente",
@@ -123,9 +158,9 @@ class UserController extends Controller
         ]);
     }
 
-    public function actualizarTallasUser(Request $request, $correo) 
+    public function actualizarTallasUser(Request $request) 
     {
-        $user = User::where('correo', $correo)->first();
+        $user = auth()->user();
 
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);

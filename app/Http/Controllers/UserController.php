@@ -243,4 +243,21 @@ class UserController extends Controller
             "usersTotales" => $users->total(),
         ]);
     }
+
+    public function borrarCuenta(Request $request, $user_id) {
+        $user = User::find($user_id);
+
+        if(!$user) {
+            return response()->json([
+                "Mensaje" => "Usuario no encontrado",
+                "code" => 404,
+            ], 404);
+        };
+
+        $user->delete();
+
+        return response()->json([
+            "Mensaje" => "Usuario eliminado con exito",
+        ], 200);
+    }
 }

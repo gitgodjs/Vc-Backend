@@ -20,6 +20,7 @@ Route::middleware('auth:api')->group(function () {
 Route::get('user/obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUserCorreo']);
 Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallasUser']);
 Route::post('user/getUsers/{page}', [UserController::class, 'getUsers']);
+Route::post('user/borrarCuenta/{user_id}', [UserController::class, 'borrarCuenta']);
 
 // Data para uno mismo (users token)
 Route::get('user/crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);

@@ -124,7 +124,9 @@ class PublicacionesController extends Controller
 
         $baseUrl = env('APP_URL');
         $userPublicacion = User::with(["imagenProfile"])->find($publicacion->id_user);
-        $userPublicacion->imagen = $baseUrl . "/storage/" . $userPublicacion->imagenProfile->url;
+        if($userPublicacion->imagen !== null) {
+            $userPublicacion->imagen = $baseUrl . "/storage/" . $userPublicacion->imagenProfile->url;
+        }
 
         if ($user->id == $publicacion->id_user) {
             $itsMe = true;

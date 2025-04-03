@@ -1,0 +1,145 @@
+CREATE TABLE users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    correo VARCHAR(255) UNIQUE,
+    password VARCHAR(255),
+    username VARCHAR(255),
+    nombre VARCHAR(255),
+    descripcion TEXT,
+    ubicacion VARCHAR(255),
+    email_verified_at TIMESTAMP NULL,
+    telefono VARCHAR(20),
+    red_social VARCHAR(255),
+    genero VARCHAR(50),
+    fecha_nacimiento DATE,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    deleted_at TIMESTAMP NULL
+);
+
+CREATE TABLE users_codigos (
+    id_user INT PRIMARY KEY,
+    codigo VARCHAR(255),
+    create_at DATETIME,
+    update_at DATETIME
+);
+
+CREATE TABLE users_tallas (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    user_id INT,
+    remeras VARCHAR(50),
+    pantalones VARCHAR(50),
+    shorts VARCHAR(50),
+    trajes VARCHAR(50),
+    vestidos VARCHAR(50),
+    abrigos VARCHAR(50),
+    calzados VARCHAR(50),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE estado_publicacion (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    estado VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE estado_ropa (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    estado VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE ropa_prendas (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    prenda VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE ropa_categorias (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    category VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE ropa_tipo (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    tipo VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE images_portada_users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    tamaño VARCHAR(50),
+    extension VARCHAR(10),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE images_publicaciones (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    id_publicacion INT NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    tamaño VARCHAR(50),
+    nombre VARCHAR(255),
+    extension VARCHAR(10),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE images_users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_usuario INT NOT NULL,
+    url VARCHAR(255) NOT NULL,
+    tamaño VARCHAR(50),
+    extension VARCHAR(10),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE publicaciones (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_user INT NOT NULL,
+    nombre VARCHAR(255) NOT NULL,
+    descripcion TEXT,
+    estado_ropa INT,
+    estado_publicacion INT,
+    precio DECIMAL(10, 2),
+    categoria INT,
+    prenda INT,
+    talle INT,
+    tipo INT,
+    ubicacion VARCHAR(255),
+    visitas INT DEFAULT 0,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    deleted_at TIMESTAMP NULL
+);
+
+CREATE TABLE publicaciones_guardadas (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_publicacion INT NOT NULL,
+    user_id INT NOT NULL,
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);
+
+CREATE TABLE opiniones_users (
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    id_comentador INT NOT NULL,
+    id_comentado INT NOT NULL,
+    comentario TEXT,
+    rate_general TINYINT CHECK (rate_general BETWEEN 1 AND 5),
+    rate_calidad_precio TINYINT CHECK (rate_calidad_precio BETWEEN 1 AND 5),
+    rate_atencion TINYINT CHECK (rate_atencion BETWEEN 1 AND 5),
+    rate_flexibilidad TINYINT CHECK (rate_flexibilidad BETWEEN 1 AND 5),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP
+);

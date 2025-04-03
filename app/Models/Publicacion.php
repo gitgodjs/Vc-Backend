@@ -52,12 +52,7 @@ class Publicacion extends Model
     {
         return $this->belongsTo(Prendas::class, 'prenda');
     }
-
-    public function talle()
-    {
-        return $this->belongsTo(Talle::class, 'talle');
-    }
-
+    
     public function tipo()
     {
         return $this->belongsTo(RopaTipo::class, 'tipo');

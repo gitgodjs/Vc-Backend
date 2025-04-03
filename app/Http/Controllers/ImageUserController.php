@@ -38,7 +38,7 @@ class ImageUserController extends Controller
                 if (Storage::disk('public')->exists($imagePath)) {
                     Storage::disk('public')->delete($imagePath);
                 }
-            }
+            };
     
             $filename = 'image_' . $imageType . '_user_' . time() . '.' . $imageFile->getClientOriginalExtension();
             $path = $imageFile->storeAs("images_user/{$folder}", $filename, 'public');

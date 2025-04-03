@@ -24,8 +24,8 @@ class PublicacionesController extends Controller
     public function crearPublicacion(Request $request)
     {
         $user = auth()->user();
-        $categoria = RopaCategorias::where("category", $request->categoria)->first();
-        $prenda = Prendas::where("prenda", $request->prenda)->first();
+        $categoria = RopaCategorias::where("category", $request->categoria["category"])->first();
+        $prenda = Prendas::where("prenda", $request->categoria["name"])->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
 
@@ -45,7 +45,6 @@ class PublicacionesController extends Controller
 
         return response()->json([
             "publicacion" => $publicacion,
-            
         ]);
     }
 

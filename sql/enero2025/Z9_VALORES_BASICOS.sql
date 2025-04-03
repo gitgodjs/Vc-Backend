@@ -1,16 +1,4 @@
 USE Vc;
-INSERT INTO publicaciones_tipo (nombre) VALUES 
-('Ropa Superior'),
-('Ropa Inferior'),
-('Ropa de Abrigo'),
-('Ropa Deportiva'),
-('Ropa Formal / de Oficina'),
-('Ropa de Noche / Fiesta'),
-('Accesorios'),
-('Ropa de Baño'),
-('Ropa Casual'),
-('Ropa de Maternidad'),
-('Ropa de Trabajo / Uniformes');
 
 INSERT INTO estado_publicacion (estado) VALUES 
 ('Activa'),
@@ -27,68 +15,87 @@ INSERT INTO estado_ropa (estado) VALUES
 ('En Reparación'),
 ('Antiguo');
 
+-- Tabla de categorías
+INSERT INTO `ropa_categorias` (`id`, `category`) VALUES
+(1, 'Ropa Superior'),
+(2, 'Ropa Inferior'),
+(3, 'Calzado'),
+(4, 'Ropa de Abrigo'),
+(5, 'Ropa Deportiva'),
+(6, 'Ropa Formal'),
+(7, 'Ropa de Noche'),
+(8, 'Accesorios'),
+(9, 'Ropa de Baño'),
+(10, 'Ropa Casual'),
+(11, 'Ropa de Maternidad'),
+(12, 'Ropa de Trabajo'),
+(13, 'Ropa Interior');
 
+-- Tabla de prendas
+INSERT INTO `ropa_prendas` (`id`, `prenda`, `categoria_id`) VALUES
+-- Ropa Superior (1)
+(1, 'Camisetas / Remeras', 1),
+(2, 'Camisas', 1),
+(3, 'Blusas', 1),
+(4, 'Suéteres / Jerseys', 1),
+(5, 'Chalecos', 1),
 
-INSERT INTO `prendas` (`prenda`) VALUES
-('Camisetas / Remeras'),
-('Camisas'),
-('Blusas'),
-('Suéteres / Jerseys'),
-('Chalecos'),
-('Abrigos'),
-('Pantalones'),
-('Shorts'),
-('Faldas'),
-('Leggings'),
-('Calzoncillos / Bóxers'),
-('Sujetadores'),
-('Tangas / Calzones'),
-('Chaquetas'),
-('Abrigos'),
-('Parkas'),
-('Bermudas'),
-('Pantalones deportivos'),
-('Chándales'),
-('Leggings deportivos'),
-('Camisetas deportivas'),
-('Trajes'),
-('Camisas de vestir'),
-('Pantalones de vestir'),
-('Blazers'),
-('Vestidos'),
-('Tops de fiesta'),
-('Faldas de noche'),
-('Pantalones de noche'),
-('Bufandas'),
-('Gorros / Sombreros'),
-('Guantes'),
-('Cinturones'),
-('Relojes'),
-('Lentes de sol'),
-('Bikinis'),
-('Bañadores'),
-('Shorts de baño'),
-('Jeans'),
-('Joggers'),
-('Camisetas de manga larga o corta'),
-('Sudaderas'),
-('Vestidos de maternidad'),
-('Pantalones de maternidad'),
-('Overoles'),
-('Batas'),
-('Uniformes escolares');
+-- Ropa Inferior (2)
+(6, 'Pantalones', 2),
+(7, 'Shorts', 2),
+(8, 'Faldas', 2),
+(9, 'Leggings', 2),
 
-INSERT INTO `ropa_categorias` (`category`) VALUES
-('Todos'),
-('Ropa Superior'),
-('Ropa Inferior'),
-('Ropa Interior'),
-('Ropa de Abrigo'),
-('Ropa Deportiva'),
-('Ropa Formal / de Oficina'),
-('Ropa de Noche / Fiesta'),
-('Accesorios'),
-('Ropa de Baño'),
-('Ropa Casual'),
-('Ropa de Maternidad'),
-('Ropa de Trabajo / Uniformes');
+-- Calzado (3)
+(10, 'Zapatos Formales', 3),
+(11, 'Zapatos Deportivos', 3),
+(12, 'Botas', 3),
+(13, 'Botines', 3),
+
+-- Ropa de Abrigo (4)
+(14, 'Chaquetas', 4),
+(15, 'Abrigos', 4),
+(16, 'Parkas', 4),
+
+-- Ropa Deportiva (5)
+(17, 'Pantalones deportivos', 5),
+(18, 'Chándales', 5),
+(19, 'Leggings deportivos', 5),
+
+-- Ropa Formal (6)
+(20, 'Trajes', 6),
+(21, 'Camisas de vestir', 6),
+(22, 'Pantalones de vestir', 6),
+
+-- Ropa de Noche (7)
+(23, 'Vestidos de noche', 7),
+(24, 'Tops de fiesta', 7),
+
+-- Accesorios (8)
+(25, 'Bufandas', 8),
+(26, 'Gorros / Sombreros', 8),
+
+-- Ropa de Baño (9)
+(27, 'Bikinis', 9),
+(28, 'Bañadores', 9),
+
+-- Ropa Casual (10)
+(29, 'Jeans', 10),
+(30, 'Joggers', 10),
+
+-- Ropa de Maternidad (11)
+(31, 'Vestidos de maternidad', 11),
+(32, 'Pantalones de maternidad', 11),
+
+-- Ropa de Trabajo (12)
+(33, 'Overoles', 12),
+(34, 'Batas', 12),
+
+-- Ropa Interior (13)
+(35, 'Calzoncillos / Bóxers', 13),
+(36, 'Sujetadores', 13);
+
+INSERT INTO ropa_tipo (tipo) VALUES 
+('De marca'),
+('De diseño'),
+('Otro');

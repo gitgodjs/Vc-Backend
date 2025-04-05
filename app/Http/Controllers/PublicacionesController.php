@@ -85,10 +85,10 @@ class PublicacionesController extends Controller
             ], 404);
         };
 
-        $categoria = RopaCategorias::find($request->categoria["id"]);
-        $estado = EstadoRopa::find($request->estado["id"]);
-        $prenda = Prendas::where("prenda", $request->prenda)->first();
-        $tipo = RopaTipo::where("tipo", $request->tipo["category"])->first();
+        $categoria = RopaCategorias::where("category", $request->categoria["category"])->first();
+        $prenda = Prendas::where("prenda", $request->categoria["name"])->first();
+        $tipo = RopaTipo::where("tipo", $request->tipo)->first();
+        $estado = EstadoRopa::where("estado", $request->estado)->first();
 
         $publicacion->update([
             'nombre' => $request->titulo,
@@ -96,16 +96,15 @@ class PublicacionesController extends Controller
             'ubicacion' => $request->ciudad,
             'precio' => $request->precio,
             'categoria' => $categoria->id,
-            'talle' => $request->talla["category"],
+            'prenda' => $prenda->id,
+            'talle' => $request->talla,
             'tipo' => $tipo->id, 
             'estado_ropa' => $estado->id,
-            'prenda' => $prenda->id,
         ]);
-
 
         return response()->json([
             "mensaje" => "Publicacion actualizada con exito!",
-            "publicacion" => $publicacion
+            "publicacion" => $publicacion,
         ], 200);
     }
 

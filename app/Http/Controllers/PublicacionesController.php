@@ -155,9 +155,11 @@ class PublicacionesController extends Controller
 
         Carbon::setLocale('es');
 
+        $creador = User::find($publicacion->id_user);
+
         $publicacionFormateada = [
             'id' => $publicacion->id,
-            'id_creador' => $publicacion->id_user,
+            'creador' => $creador,
             'nombre' => $publicacion->nombre,
             'descripcion' => $publicacion->descripcion,
             'precio' => $publicacion->precio,
@@ -404,13 +406,11 @@ class PublicacionesController extends Controller
         $publicacionesIds = PublicacionGuardada::where("user_id", $user_id)
             ->skip($offset)
             ->take($limit)
-            ->get();
+            ->pluck('id_publicacion');
     
         Carbon::setLocale('es');
         
-        $publicaciones = $publicacionesIds->map(function ($item) use ($user) { 
-            $publicacion = Publicacion::find($item->id_publicacion); 
-    
+        $publicaciones = Publicacion::whereIn('id', $publicacionesIds)->get()->map(function ($publicacion) {
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,

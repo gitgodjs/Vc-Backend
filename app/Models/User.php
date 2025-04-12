@@ -42,6 +42,15 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasOne(ImagePortadaUser::class, 'id_usuario');
     }
 
+    public function getFotoPerfilUrl()
+    {
+        if ($this->imagenProfile) {
+            return env('APP_URL') . "/storage/" . $this->imagenProfile->url;
+        }
+        return 'URL no disponible';
+    }
+
+
     public function publicaciones()
     {
         return $this->hasMany(Publicacion::class, 'id_user');
@@ -60,6 +69,18 @@ class User extends Authenticatable implements JWTSubject
     public function tallas()
     {
         return $this->hasOne(UsersTalla::class, 'user_id');
+    }
+
+    public function conversations()
+    {
+        return Conversation::where(function($query) {
+                $query->where('emisor_id', $this->id)
+                    ->orWhere('receptor_id', $this->id);
+            })
+            ->with(['emisor', 'receptor', 'messages' => function($query) {
+                $query->latest()->limit(10);
+            }])
+            ->latest('updated_at'); 
     }
 
     public function getJWTIdentifier()

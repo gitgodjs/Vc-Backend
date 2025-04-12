@@ -7,6 +7,7 @@ use App\Http\Controllers\UserController;
 use App\Http\Controllers\ImageUserController;
 use App\Http\Controllers\PublicacionesController;
 use App\Http\Controllers\ImagePublicacionController;
+use App\Http\Controllers\ChatController;
 
 // Principal usuarios
 Route::post('register', [AuthController::class, 'register']);
@@ -64,3 +65,10 @@ Route::get('publicaciones/getImageById/{publicacion_id}', [ImagePublicacionContr
 Route::get('publicacionImage/getFileImageById/{image_id}', [ImagePublicacionController::class, 'getFileImageById'] );
 Route::post('publicacionImage/updateImage/{publicacion_id}', [ImagePublicacionController::class, 'updateImage']);
 Route::post('publicacionesImage/getImagesById', [ImagePublicacionController::class, 'getImagesById']);
+
+
+// Chat 
+Route::post('chat/ofertar', [ChatController::class, 'ofertar']);
+Route::get('chat/obtenerChats', [ChatController::class, 'obtenerChats']);
+Route::get('chat/obtenerConversation/{conversation_id}', [ChatController::class, 'obtenerConversation']);
+

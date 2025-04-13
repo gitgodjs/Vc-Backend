@@ -188,6 +188,117 @@ restApp.get('/api/conversations/:user_id', async (req, res) => {
   }
 });
 
+async function getFormattedConversation(conversationId, userId) {
+  const [result] = await db.query(`
+    SELECT 
+      c.*,
+      u.id as other_user_id,
+      u.nombre as other_user_nombre,
+      u.correo as other_user_email,
+
+      last_msg.id as last_message_id,
+      last_msg.content as last_message_content,
+      last_msg.emisor_id as last_message_emisor_id,
+      last_msg.read_at as last_message_read_at,
+      last_msg.created_at as last_message_created_at,
+      last_msg.updated_at as last_message_updated_at,
+
+      msg_sender.id as last_message_sender_id,
+      msg_sender.nombre as last_message_sender_nombre,
+
+      (
+        SELECT COUNT(*) 
+        FROM chat_messages unread
+        WHERE unread.conversation_id = c.id
+        AND unread.emisor_id != ?  -- mensajes del otro usuario
+        AND unread.read_at IS NULL
+      ) as unread_count
+
+    FROM chat_conversations c
+    JOIN users u ON 
+      CASE 
+        WHEN c.emisor_id = ? THEN c.receptor_id 
+        ELSE c.emisor_id 
+      END = u.id
+    LEFT JOIN (
+      SELECT m1.*
+      FROM chat_messages m1
+      INNER JOIN (
+        SELECT conversation_id, MAX(created_at) as max_date
+        FROM chat_messages
+        GROUP BY conversation_id
+      ) m2 ON m1.conversation_id = m2.conversation_id AND m1.created_at = m2.max_date
+    ) last_msg ON last_msg.conversation_id = c.id
+    LEFT JOIN users msg_sender ON last_msg.emisor_id = msg_sender.id
+    WHERE c.id = ? AND (c.emisor_id = ? OR c.receptor_id = ?)
+  `, [userId, userId, conversationId, userId, userId]);
+
+  if (!result.length) return null;
+
+  const conv = result[0];
+
+  const formatTimeAgo = (dateString) => {
+    if (!dateString) return null;
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    const intervals = {
+      año: 31536000,
+      mes: 2592000,
+      semana: 604800,
+      día: 86400,
+      hora: 3600,
+      minuto: 60
+    };
+    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
+      const interval = Math.floor(seconds / secondsInUnit);
+      if (interval >= 1) {
+        return `Hace ${interval} ${unit}${interval !== 1 ? 's' : ''}`;
+      }
+    }
+    return 'Hace unos segundos';
+  };
+
+  return {
+    id: conv.id,
+    other_user: {
+      id: conv.other_user_id,
+      nombre: conv.other_user_nombre,
+      email: conv.other_user_email,
+    },
+    last_message: conv.last_message_content ? {
+      id: conv.last_message_id,
+      content: conv.last_message_content,
+      emisor: {
+        id: conv.last_message_sender_id,
+        nombre: conv.last_message_sender_nombre,
+      },
+      read_at: conv.last_message_read_at,
+      created_at: conv.last_message_created_at,
+      updated_at: conv.last_message_updated_at,
+      time_ago: formatTimeAgo(conv.last_message_created_at)
+    } : null,
+    unread_count: conv.unread_count || 0,
+    created_at: conv.created_at,
+    updated_at: conv.updated_at
+  };
+};
+
+function formatMessage(m) {
+  return {
+    id: m.id,
+    content: m.content,
+    created_at: m.created_at,
+    read_at: m.read_at,
+    emisor: {
+      id: m.emisor_id,
+      nombre: m.emisor_nombre
+    },
+    conversation_id: m.conversation_id
+  };
+}
+
+
 // Agrega este endpoint antes de los middlewares de error
 restApp.post('/api/chat/ofertar', async (req, res) => {
   try {
@@ -200,7 +311,7 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
     const emisor_id = ofertador.id;
     const receptor_id = publicacion.creador.id;
 
-    // 1. Buscar o crear conversación (solo una vez)
+    // 1. Buscar o crear conversación
     const [conversation] = await db.query(`
       INSERT INTO chat_conversations (emisor_id, receptor_id, created_at)
       VALUES (?, ?, NOW())
@@ -216,14 +327,14 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       conversation_id = existing[0].id;
     }
 
-    // 2. Guardar mensaje (solo una vez)
+    // 2. Guardar mensaje
     const [message] = await db.query(`
       INSERT INTO chat_messages 
       (conversation_id, emisor_id, content, created_at)
       VALUES (?, ?, ?, NOW())
     `, [conversation_id, emisor_id, mensaje]);
 
-    // 3. Obtener datos completos
+    // 3. Obtener datos completos del mensaje
     const [messageData] = await db.query(`
       SELECT m.*, u.nombre as emisor_nombre 
       FROM chat_messages m
@@ -231,7 +342,12 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       WHERE m.id = ?
     `, [message.insertId]);
 
-    // 4. Emitir evento (solo una vez)
+    // 4. Obtener conversaciones formateadas para ambos usuarios
+    const formattedForEmisor = await getFormattedConversation(conversation_id, emisor_id);
+    const formattedForReceptor = await getFormattedConversation(conversation_id, receptor_id);
+
+    // 5. Emitir eventos
+    // Nuevo mensaje (solo para receptor)
     io.to(`user_${receptor_id}`).emit('new_message', {
       conversation_id,
       emisor_id,
@@ -240,7 +356,15 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       created_at: messageData[0].created_at
     });
 
-    // 5. Responder al cliente
+    // Nueva conversación (para ambos usuarios)
+    io.to(`user_${emisor_id}`).emit('new_conversation', {
+      conversation: formattedForEmisor
+    });
+    io.to(`user_${receptor_id}`).emit('new_conversation', {
+      conversation: formattedForReceptor
+    });
+
+    // 6. Respuesta al cliente
     res.json({
       success: true,
       conversation_id,
@@ -256,6 +380,99 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
   }
 });
 
+restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) => {
+  try {
+    const conversationId = parseInt(req.params.conversation_id);
+    const userId = parseInt(req.query.user_id); // lo pasás por query string
+
+    if (isNaN(conversationId) || isNaN(userId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'conversation_id y user_id deben ser numéricos'
+      });
+    }
+
+    // 1. Verificar si el usuario forma parte de la conversación
+    const [convCheck] = await db.query(`
+      SELECT * FROM chat_conversations 
+      WHERE id = ? AND (emisor_id = ? OR receptor_id = ?)
+    `, [conversationId, userId, userId]);
+
+    if (!convCheck.length) {
+      return res.status(403).json({
+        success: false,
+        error: 'No tenés permiso para ver esta conversación'
+      });
+    }
+
+    // 2. Obtener mensajes de la conversación
+    const [messages] = await db.query(`
+      SELECT 
+        m.id,
+        m.content,
+        m.created_at,
+        m.read_at,
+        u.id as emisor_id,
+        u.nombre as emisor_nombre
+      FROM chat_messages m
+      JOIN users u ON u.id = m.emisor_id
+      WHERE m.conversation_id = ?
+      ORDER BY m.id ASC
+    `, [conversationId]);
+    
+    res.json({
+      success: true,
+      conversation_id: conversationId,
+      messages: messages.map(m => ({
+        id: m.id,
+        content: m.content,
+        created_at: m.created_at,
+        read_at: m.read_at,
+        emisor: {
+          id: m.emisor_id,
+          nombre: m.emisor_nombre
+        }
+      }))
+    });
+
+  } catch (error) {
+    console.error('❌ Error al obtener conversación:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error interno',
+      details: error.message
+    });
+  }
+});
+
+restApp.post('/api/chat/marcarComoLeido', async (req, res) => {
+  try {
+    const { conversation_id, user_id } = req.body;
+
+    if (!conversation_id || !user_id) {
+      return res.status(400).json({
+        success: false,
+        error: "Faltan datos"
+      });
+    }
+
+    await db.query(`
+      UPDATE chat_messages
+      SET read_at = NOW()
+      WHERE conversation_id = ? 
+      AND emisor_id != ?
+      AND read_at IS NULL
+    `, [conversation_id, user_id]);
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error("❌ Error al marcar como leído:", error);
+    res.status(500).json({
+      success: false,
+      error: "Error interno"
+    });
+  }
+});
 
 // ==============================================
 // MIDDLEWARES DE ERROR (DEBEN IR AL FINAL)
@@ -326,15 +543,15 @@ io.on('connection', (socket) => {
       `, [message.insertId]);
       
       // 3. Emitir solo cuando tengamos todos los datos
-      io.to(`user_${data.receptor_id}`).emit('new_message', {
-        conversation_id: data.conversation_id,
-        emisor: {
-          id: data.emisor_id,
-          nombre: completeMessage[0].emisor_nombre
-        },
-        ...completeMessage[0]
-      });
-      
+      const mensajeFormateado = formatMessage(completeMessage[0]);
+
+// Emitir al receptor
+      io.to(`user_${data.receptor_id}`).emit('new_message', mensajeFormateado);
+
+      // Emitir también al emisor (por si quiere ver su mensaje reflejado de inmediato)
+      io.to(`user_${data.emisor_id}`).emit('new_message', mensajeFormateado);
+
+
       // 4. Confirmar al emisor
       callback({ status: 'success', message: completeMessage[0] });
       

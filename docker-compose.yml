@@ -17,9 +17,6 @@ services:
       XDEBUG_MODE: '${SAIL_XDEBUG_MODE:-off}'
       XDEBUG_CONFIG: '${SAIL_XDEBUG_CONFIG:-client_host=host.docker.internal}'
       IGNITION_LOCAL_SITES_PATH: './vendor/laravel/sail/runtimes/8.2'
-      LARAVEL_WEBSOCKETS_HOST: '0.0.0.0'
-      PUSHER_HOST: 'laravel.test'
-      PUSHER_PORT: '6001'
       APP_URL: 'http://localhost:8080'
     volumes:
       - '.:/var/www/html'
@@ -32,7 +29,7 @@ services:
   mysql:
     image: 'mysql/mysql-server:8.0'
     ports:
-      - '3307:3306'    # Puerto mapeado para acceso externo
+      - '3307:3306'    
     environment:
       MYSQL_ROOT_PASSWORD: '${DB_PASSWORD}'
       MYSQL_DATABASE: '${DB_DATABASE}'
@@ -52,7 +49,30 @@ services:
       retries: 3
       timeout: 5s
       start_period: 20s
-  
+  chat-service:  # 🆕 Nuevo servicio de Node.js
+    build:
+      context: ./Vc-Chat-Service  # Ruta a la carpeta del microservicio
+      dockerfile: Dockerfile.dev  # En produccion cambiar a Dockerfile sin dev
+    volumes:
+      - ./Vc-Chat-Service:/app
+      - /app/node_modules
+    container_name: chat-service
+    restart: unless-stopped
+    ports:
+      - "3001:3001"  # API REST
+      - "3002:3002"  # WebSocket (Socket.io)
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=vclothes                 
+      - DB_PASSWORD=vintageClothes2025   
+      - DB_NAME=Vc
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - sail  # Misma red que Laravel y MySQL
 
 networks:
   sail:

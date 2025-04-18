@@ -5,5 +5,5 @@ COPY package*.json ./
 RUN npm install -g nodemon && npm install
 COPY . .
 
-EXPOSE 3001 3002
+EXPOSE 3001
 CMD ["npx", "nodemon", "--inspect=0.0.0.0", "server.js"]

@@ -5,10 +5,20 @@ const { Server } = require('socket.io');
 const mysql = require('mysql2/promise');
 const cors = require('cors');
 
+// Redis para guardar users conectados en tiempo real
+const { createClient } = require('redis');
+const redisClient = createClient({ url: 'redis://redis:6379' });
+
 // Configuración básica
 const restApp = express();
 const REST_PORT = 3001;
 const restServer = createServer(restApp);
+
+// Para redis!
+(async () => {
+  await redisClient.connect();
+  console.log('✅ Redis conectado para manejo de usuarios online');
+})();
 
 // Configuración CORS
 restApp.use(cors({
@@ -574,40 +584,65 @@ restApp.use((err, req, res, next) => {
 // CONFIGURACIÓN DE WEBSOCKET (opcional)
 // ==============================================
 
-const WS_PORT = process.env.WS_PORT || 3002;
-const wsServer = createServer();
-const io = new Server(wsServer, {
+const io = new Server(restServer, {  
   cors: {
     origin: "http://localhost:3000",
     methods: ["GET", "POST"],
     credentials: true
   },
-  transports: ['websocket']
+  transports: ['websocket', 'polling'] 
 });
 
-io.on('connection', (socket) => {
+io.on('connection', async (socket) => {
   console.log('✅ Cliente WebSocket conectado:', socket.id);
+  
+  // 1. Verificar y obtener userId desde el handshake
+  const { userId } = socket.handshake.query;
+  if (!userId) return socket.disconnect();
+
+  // 2. Registrar usuario como conectado en Redis
+  try {
+    await redisClient.sAdd('onlineUsers', userId);
+    await redisClient.hSet('userSockets', userId, socket.id); // Guardar relación userId → socket.id
+    
+    // 3. Notificar a todos los usuarios actualizados
+    const onlineUsers = await redisClient.sMembers('onlineUsers');
+    io.emit('onlineUsers', onlineUsers);
+    
+    console.log(`👤 Usuario ${userId} conectado. Online: ${onlineUsers.length}`);
+  } catch (err) {
+    console.error('Error en Redis al conectar:', err);
+    return socket.disconnect();
+  }
+
+  // 4. Emitir estado de conexión al cliente
   socket.emit('connection_status', { 
     status: 'connected',
     socketId: socket.id,
+    userId,
     timestamp: new Date().toISOString()
   });
 
-  socket.on('subscribe', (userId) => {
-    socket.join(`user_${userId}`);
-    console.log(`👂 Usuario ${userId} escuchando updates`);
+  // 5. Manejar suscripción a canales privados
+  socket.on('subscribe', (channel) => {
+    socket.join(`user_${channel}`);
+    console.log(`👂 Usuario ${userId} suscrito a ${channel}`);
   });
 
+  // 6. Manejar envío de mensajes (con verificación de usuario conectado)
   socket.on('send_message', async (data, callback) => {
     try {
-      // 1. Primero crear en la base de datos
+      // Verificar si el receptor está conectado
+      const isReceiverOnline = await redisClient.sIsMember('onlineUsers', data.receptor_id);
+      
+      // 1. Guardar mensaje en DB
       const [message] = await db.query(`
         INSERT INTO chat_messages 
         (conversation_id, emisor_id, content, created_at) 
         VALUES (?, ?, ?, NOW())
-      `, [data.conversation_id, data.emisor_id, data.content]);   
+      `, [data.conversation_id, data.emisor_id, data.content]);
 
-      // 2. Obtener datos completos
+      // 2. Obtener datos completos del mensaje
       const [completeMessage] = await db.query(`
         SELECT m.*, u.nombre as emisor_nombre 
         FROM chat_messages m
@@ -615,29 +650,59 @@ io.on('connection', (socket) => {
         WHERE m.id = ?
       `, [message.insertId]);
       
-      // 3. Emitir solo cuando tengamos todos los datos
       const mensajeFormateado = formatMessage(completeMessage[0]);
 
-      // Emitir al receptor
-      io.to(`user_${data.receptor_id}`).emit('new_message', mensajeFormateado);
-      // 📡 Emitir evento adicional para refrescar lista de conversaciones
-      io.to(`user_${data.receptor_id}`).emit('update_conversations');
+      // 3. Emitir eventos
+      if (isReceiverOnline) {
+        io.to(`user_${data.receptor_id}`).emit('new_message', mensajeFormateado);
+        io.to(`user_${data.receptor_id}`).emit('update_conversations');
+      } else {
+        // Opcional: Guardar notificación pendiente en DB
+        console.log(`✉️ Receptor offline. Mensaje guardado para ${data.receptor_id}`);
+      }
 
-      // Emitir también al emisor (por si quiere ver su mensaje reflejado de inmediato)
+      // Siempre notificar al emisor
       io.to(`user_${data.emisor_id}`).emit('new_message', mensajeFormateado);
 
-
       // 4. Confirmar al emisor
-      callback({ status: 'success', message: completeMessage[0] });
+      callback({ 
+        status: 'success', 
+        message: completeMessage[0],
+        receiverOnline: isReceiverOnline 
+      });
       
     } catch (error) {
-      console.error('Error:', error);
+      console.error('Error al enviar mensaje:', error);
       callback({ status: 'error', error: error.message });
     }
   });
-  
+
+  // 7. Manejar desconexión
+  socket.on('disconnect', async () => {
+    try {
+      await redisClient.sRem('onlineUsers', userId);
+      await redisClient.hDel('userSockets', userId);
+      
+      const onlineUsers = await redisClient.sMembers('onlineUsers');
+      io.emit('onlineUsers', onlineUsers);
+      
+      console.log(`❌ Usuario ${userId} desconectado. Online: ${onlineUsers.length}`);
+    } catch (err) {
+      console.error('Error en Redis al desconectar:', err);
+    }
+  });
+
+  // 8. Heartbeat para detectar conexiones caídas
+  let heartbeatInterval = setInterval(async () => {
+    try {
+      await redisClient.sAdd('onlineUsers', userId); // Renovar registro
+    } catch (err) {
+      clearInterval(heartbeatInterval);
+    }
+  }, 25000); // Cada 25 segundos
+
   socket.on('disconnect', () => {
-    console.log('❌ Cliente WebSocket desconectado:', socket.id);
+    clearInterval(heartbeatInterval);
   });
 });
 
@@ -646,12 +711,8 @@ io.on('connection', (socket) => {
 // ==============================================
 
 restServer.listen(REST_PORT, '0.0.0.0', () => {
-  console.log(`🚀 API REST escuchando en puerto ${REST_PORT}`);
-  console.log(`📡 Endpoints disponibles:`);
+  console.log(`🚀 Servidor combinado (REST + WS) en puerto ${REST_PORT}`);
+  console.log(`📡 Endpoints REST disponibles:`);
   console.log(`- http://localhost:${REST_PORT}/api/conversations/:user_id`);
-  console.log(`- http://localhost:${REST_PORT}/api/routes`);
-});
-
-wsServer.listen(WS_PORT, '0.0.0.0', () => {
-  console.log(`🎧 WebSocket escuchando en puerto ${WS_PORT}`);
+  console.log(`🎧 WebSocket disponible en ws://localhost:${REST_PORT}`);
 });

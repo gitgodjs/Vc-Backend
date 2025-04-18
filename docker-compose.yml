@@ -60,7 +60,6 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3001"  # API REST
-      - "3002:3002"  # WebSocket (Socket.io)
     environment:
       - NODE_ENV=development
       - DB_HOST=mysql
@@ -73,6 +72,16 @@ services:
         condition: service_healthy
     networks:
       - sail  # Misma red que Laravel y MySQL
+  redis: 
+    image: redis:alpine  
+    container_name: vc-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data  
+    networks:
+      - sail  
+    restart: unless-stopped
 
 networks:
   sail:
@@ -80,4 +89,6 @@ networks:
 
 volumes:
   sail-mysql:
+    driver: local
+  redis_data: 
     driver: local

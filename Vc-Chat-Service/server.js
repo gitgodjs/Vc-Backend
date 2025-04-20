@@ -679,17 +679,10 @@ io.on('connection', async (socket) => {
       
       const mensajeFormateado = formatMessage(completeMessage[0]);
 
-      // 3. Emitir eventos
-      if (isReceiverOnline) {
-        io.to(`user_${data.receptor_id}`).emit('new_message', mensajeFormateado);
-        io.to(`user_${data.receptor_id}`).emit('update_conversations');
-      } else {
-        // Opcional: Guardar notificación pendiente en DB
-        console.log(`✉️ Receptor offline. Mensaje guardado para ${data.receptor_id}`);
-      }
-
-      // Siempre notificar al emisor
+      io.to(`user_${data.receptor_id}`).emit('new_message', mensajeFormateado);
       io.to(`user_${data.emisor_id}`).emit('new_message', mensajeFormateado);
+
+      io.to(`user_${data.receptor_id}`).emit('update_conversations');
 
       // 4. Confirmar al emisor
       callback({ 
@@ -739,8 +732,18 @@ io.on('connection', async (socket) => {
       console.error('❌ Error al manejar messages_read:', err);
     }
   });  
+  
+  // 9. Revisar si un usuario esta online
+  socket.on('get_online_users', async () => {
+    try {
+      const onlineUsers = await redisClient.sMembers('onlineUsers');
+      socket.emit('onlineUsers', onlineUsers); // Solo a quien lo pidió
+    } catch (err) {
+      console.error('Error al obtener usuarios online:', err);
+    }
+  });
 
-  // 8. Manejar desconexión
+  // 10. Manejar desconexión
   socket.on('disconnect', async () => {
     try {
       await redisClient.sRem('onlineUsers', userId);

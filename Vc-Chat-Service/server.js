@@ -217,6 +217,33 @@ restApp.get('/api/conversations/:user_id', async (req, res) => {
   }
 });
 
+// Nuevo endpoint para verificar estado de usuario
+restApp.get('/api/chat/checkUserStatus', async (req, res) => {
+  try {
+    const userId = req.query.user_id;
+    if (!userId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Se requiere user_id'
+      });
+    }
+
+    const isOnline = await redisClient.hExists('userConnections', userId);
+    
+    res.json({
+      success: true,
+      isOnline
+    });
+    
+  } catch (error) {
+    console.error('Error al verificar estado:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Error al verificar estado'
+    });
+  }
+});
+
 async function getFormattedConversation(conversationId, userId) {
   const [result] = await db.query(`
     SELECT 
@@ -340,7 +367,7 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
     const emisor_id = ofertador.id;
     const receptor_id = publicacion.creador.id;
 
-    // 1. Buscar conversación existente (en cualquier orden)
+    // 1. Buscar conversación existente
     const [existing] = await db.query(`
       SELECT id FROM chat_conversations 
       WHERE (emisor_id = ? AND receptor_id = ?)
@@ -385,17 +412,9 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
     const formattedForEmisor = await getFormattedConversation(conversation_id, emisor_id);
     const formattedForReceptor = await getFormattedConversation(conversation_id, receptor_id);
 
-    // 5. Emitir eventos
-    // Nuevo mensaje (solo para receptor)
-    io.to(`user_${receptor_id}`).emit('new_message', {
-      conversation_id,
-      emisor_id,
-      emisor_nombre: messageData[0].emisor_nombre,
-      content: messageData[0].content,
-      created_at: messageData[0].created_at
-    });
+    // 5. Emitir eventos al receptor y al emisor **después de que los datos se hayan guardado correctamente**
+    io.to(`user_${receptor_id}`).emit('new_message', formatMessage(messageData[0]));
 
-    // Nueva conversación (para ambos usuarios)
     io.to(`user_${emisor_id}`).emit('new_conversation', {
       conversation: formattedForEmisor
     });
@@ -403,7 +422,15 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       conversation: formattedForReceptor
     });
 
-    // 6. Respuesta al cliente
+    // 🔥 Emitir evento especial de oferta recibida (solo receptor)
+    io.to(`user_${receptor_id}`).emit('oferta:recibida', {
+      ofertador: ofertador.nombre,
+      mensaje,
+      precio: req.body.precio, // lo mandás desde el frontend
+      publicacion: publicacion.nombre
+    });
+
+    // 6. Responder al cliente
     res.json({
       success: true,
       conversation_id,
@@ -418,7 +445,6 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
     });
   }
 });
-
 
 restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) => {
   try {
@@ -632,8 +658,9 @@ io.on('connection', async (socket) => {
   // 6. Manejar envío de mensajes (con verificación de usuario conectado)
   socket.on('send_message', async (data, callback) => {
     try {
+
       // Verificar si el receptor está conectado
-      const isReceiverOnline = await redisClient.sIsMember('onlineUsers', data.receptor_id);
+      const isReceiverOnline = await redisClient.sIsMember('onlineUsers', String(data.receptor_id));
       
       // 1. Guardar mensaje en DB
       const [message] = await db.query(`
@@ -677,7 +704,43 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // 7. Manejar desconexión
+  // 7. Manejar lectura de mensajes
+  socket.on('messages_read', async ({ conversation_id, user_id }) => {
+    try {
+      // 1. Marcar en DB los mensajes como leídos (los del otro usuario)
+      await db.query(`
+        UPDATE chat_messages 
+        SET read_at = NOW()
+        WHERE conversation_id = ? AND emisor_id != ? AND read_at IS NULL
+      `, [conversation_id, user_id]);
+  
+      // 2. Obtener IDs de los mensajes actualizados
+      const [leidos] = await db.query(`
+        SELECT id FROM chat_messages 
+        WHERE conversation_id = ? AND emisor_id != ? AND read_at IS NOT NULL
+      `, [conversation_id, user_id]);
+  
+      const message_ids = leidos.map(m => m.id);
+  
+      // 3. Emitir evento al emisor para que marque como leídos
+      const [conv] = await db.query(`
+        SELECT emisor_id, receptor_id FROM chat_conversations 
+        WHERE id = ?
+      `, [conversation_id]);
+  
+      const emisorId = conv[0].emisor_id === user_id ? conv[0].receptor_id : conv[0].emisor_id;
+  
+      io.to(`user_${emisorId}`).emit('messages_read', { 
+        message_ids, 
+        conversation_id 
+      });
+      
+    } catch (err) {
+      console.error('❌ Error al manejar messages_read:', err);
+    }
+  });  
+
+  // 8. Manejar desconexión
   socket.on('disconnect', async () => {
     try {
       await redisClient.sRem('onlineUsers', userId);

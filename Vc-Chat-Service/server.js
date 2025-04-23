@@ -340,7 +340,6 @@ async function getFormattedConversation(conversationId, userId) {
   };
 };
 
-
 function formatMessage(m) {
   return {
     id: m.id,
@@ -353,12 +352,11 @@ function formatMessage(m) {
     },
     conversation_id: m.conversation_id
   };
-}
-
+};
 
 restApp.post('/api/chat/ofertar', async (req, res) => {
   try {
-    const { publicacion, mensaje, ofertador } = req.body;
+    const { publicacion, mensaje, ofertador, precio } = req.body;
     
     if (!ofertador?.id || !publicacion?.creador?.id) {
       throw new Error('Datos incompletos');
@@ -366,6 +364,8 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
 
     const emisor_id = ofertador.id;
     const receptor_id = publicacion.creador.id;
+    const publicacion_id = publicacion.id;
+    const precioFormateado = Number(precio);
 
     // 1. Buscar conversación existente
     const [existing] = await db.query(`
@@ -396,9 +396,10 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
     // 2. Guardar mensaje
     const [message] = await db.query(`
       INSERT INTO chat_messages 
-      (conversation_id, emisor_id, content, created_at)
-      VALUES (?, ?, ?, NOW())
-    `, [conversation_id, emisor_id, mensaje]);
+      (conversation_id, emisor_id, content, created_at, publicacion_id, oferta_precio)
+      VALUES (?, ?, ?, NOW(), ?, ?)
+    `, [conversation_id, emisor_id, mensaje, publicacion_id, precioFormateado]);
+
 
     // 3. Obtener datos completos del mensaje
     const [messageData] = await db.query(`
@@ -434,7 +435,7 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
     res.json({
       success: true,
       conversation_id,
-      message: messageData[0]
+      message: messageData[0],
     });
 
   } catch (error) {
@@ -489,17 +490,47 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
     // 2. Obtener mensajes de la conversación
     const [messages] = await db.query(`
       SELECT 
-        m.id,
-        m.content,
-        m.created_at,
-        m.read_at,
-        u.id as emisor_id,
-        u.nombre as emisor_nombre
-      FROM chat_messages m
-      JOIN users u ON u.id = m.emisor_id
-      WHERE m.conversation_id = ?
-      ORDER BY m.id ASC
+      m.id,
+      m.content,
+      m.created_at,
+      m.read_at,
+      m.publicacion_id,
+      m.oferta_precio,
+      u.id as emisor_id,
+      u.nombre as emisor_nombre
+    FROM chat_messages m
+    JOIN users u ON u.id = m.emisor_id
+    WHERE m.conversation_id = ?
+    ORDER BY m.id ASC
     `, [conversationId]);
+
+    // Si un mensaje tiene una publicación asociada, traemos los datos completos
+    for (const m of messages) {
+      if (m.publicacion_id) {
+        const [pubData] = await db.query(`
+          SELECT id, id_user, nombre, descripcion, precio, talle, tipo, ubicacion 
+          FROM publicaciones
+          WHERE id = ?
+        `, [m.publicacion_id]);
+      
+        const publicacion = pubData[0] || null;
+      
+        if (publicacion) {
+          const [imgData] = await db.query(`
+            SELECT url FROM images_publicaciones
+            WHERE id_publicacion = ?
+            ORDER BY created_at ASC
+            LIMIT 1
+          `, [publicacion.id]);
+      
+          publicacion.imagen_url = imgData[0]?.url 
+            ? `http://localhost:8080/storage/${imgData[0].url}` 
+            : null;
+        };
+      
+        m.publicacion = publicacion;
+      };      
+    };
     
     res.json({
       success: true,
@@ -511,11 +542,13 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
         content: m.content,
         created_at: m.created_at,
         read_at: m.read_at,
+        oferta_precio: m.oferta_precio,
+        publicacion: m.publicacion || null,
         emisor: {
           id: m.emisor_id,
           nombre: m.emisor_nombre
         }
-      }))
+      }))      
     });       
 
   } catch (error) {

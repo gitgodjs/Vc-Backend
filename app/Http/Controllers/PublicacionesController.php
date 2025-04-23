@@ -12,13 +12,14 @@ use App\Models\EstadoRopa;
 use App\Models\Publicacion;
 use App\Models\RopaCategorias;
 use Illuminate\Http\Request;
+use App\Models\ChatMensaje;
+use App\Models\ChatConversacion;
 use App\Models\ImagePublicacion;
 use App\Models\PublicacionGuardada;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
-
 class PublicacionesController extends Controller
 {   
     public function crearPublicacion(Request $request)
@@ -111,52 +112,61 @@ class PublicacionesController extends Controller
     public function getPublicacion($user_id, $publicacion_id) {
         $publicacion = Publicacion::with(["imagenes"])->find($publicacion_id);
     
-        if(!$publicacion) {
+        if (!$publicacion) {
             return response()->json([
-                "mensaje" => "No existe la publicacion",
+                "mensaje" => "No existe la publicación",
                 "code" => 404,
             ], 404);
-        };
-
+        }
+    
         $user = User::find($user_id);
-
         $baseUrl = env('APP_URL');
+    
         $userPublicacion = User::with(["imagenProfile"])->find($publicacion->id_user);
-        if($userPublicacion->imagen !== null) {
+        if ($userPublicacion->imagenProfile !== null) {
             $userPublicacion->imagen = $baseUrl . "/storage/" . $userPublicacion->imagenProfile->url;
         }
-
-        if ($user->id == $publicacion->id_user) {
-            $itsMe = true;
-        } else {
-            $itsMe = false;
-            
-            $publicacion->visitas = $publicacion->visitas + 1;
+    
+        $itsMe = $user->id === $publicacion->id_user;
+    
+        $yaFueOfertada = false;
+    
+        if (!$itsMe) {
+            $conversacion = ChatConversacion::where(function ($query) use ($user, $publicacion) {
+                $query->where('emisor_id', $user->id)
+                    ->where('receptor_id', $publicacion->id_user);
+            })->orWhere(function ($query) use ($user, $publicacion) {
+                $query->where('emisor_id', $publicacion->id_user)
+                    ->where('receptor_id', $user->id);
+            })->first();
+    
+            if ($conversacion) {
+                $yaFueOfertada = ChatMensaje::where('conversation_id', $conversacion->id)
+                    ->where('publicacion_id', $publicacion->id)
+                    ->exists();
+            }
+    
+            $publicacion->visitas += 1;
             $publicacion->save();
-        };
-
+        }
+    
         $imagenesUrls = [];
         foreach ($publicacion->imagenes as $imagen) {
             $imagenesUrls[] = $baseUrl . "/storage/" . $imagen->url;
-        };
-
+        }
+    
         $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
         $prenda = Prendas::find($publicacion->prenda);
         $categoria = RopaCategorias::find($publicacion->categoria);
         $tipo = RopaTipo::find($publicacion->tipo);
-
-        $guardada = false;
-            
-        if ($user) {
-            $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
-                ->where('user_id', $user->id)
-                ->exists();
-        };
-
+    
+        $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
+            ->where('user_id', $user->id)
+            ->exists();
+    
         Carbon::setLocale('es');
-
         $creador = User::find($publicacion->id_user);
-
+    
         $publicacionFormateada = [
             'id' => $publicacion->id,
             'creador' => $creador,
@@ -172,19 +182,20 @@ class PublicacionesController extends Controller
             'tipo' => $tipo->tipo,
             'ubicacion' => $publicacion->ubicacion,
             'visitas' => $publicacion->visitas,
-            'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(), 
+            'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(),
             'fecha_original' => $publicacion->created_at,
             'images_array' => $publicacion->imagenes,
             'guardada' => $guardada,
         ];
-        
+    
         return response()->json([
             "mensaje" => "Publicación obtenida con éxito",
             "publicacion" => $publicacionFormateada,
             "userPublicacion" => $userPublicacion,
             "itsMe" => $itsMe,
+            "ofertaExistente" => $yaFueOfertada,
         ], 200);
-    }
+    }    
 
     public function getPublicacionesUser($user_id, $userProfile_id, $page) {
         $limit = 5;

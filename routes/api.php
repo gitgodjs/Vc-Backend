@@ -72,3 +72,5 @@ Route::post('chat/ofertar', [ChatController::class, 'ofertar']);
 Route::get('chat/obtenerChats', [ChatController::class, 'obtenerChats']);
 Route::get('chat/obtenerConversation/{conversation_id}', [ChatController::class, 'obtenerConversation']);
 
+// Ofertas a publicaciones
+Route::post('publicaciones/eliminarOferta', [PublicacionesController::class, 'eliminarOferta']);

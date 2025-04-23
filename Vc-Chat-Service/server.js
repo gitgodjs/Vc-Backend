@@ -145,7 +145,9 @@ restApp.get('/api/conversations/:user_id', async (req, res) => {
       LEFT JOIN users msg_sender ON last_msg.emisor_id = msg_sender.id
     
       /* Conversaciones donde el usuario participa */
-      WHERE c.emisor_id = ? OR c.receptor_id = ?
+      WHERE 
+        (c.emisor_id = ? OR c.receptor_id = ?)
+        AND c.deleted_at IS NULL
     
       ORDER BY last_msg.created_at DESC
     `, [userId, userId, userId]);
@@ -251,25 +253,25 @@ async function getFormattedConversation(conversationId, userId) {
       u.id as other_user_id,
       u.nombre as other_user_nombre,
       u.correo as other_user_email,
-
+  
       last_msg.id as last_message_id,
       last_msg.content as last_message_content,
       last_msg.emisor_id as last_message_emisor_id,
       last_msg.read_at as last_message_read_at,
       last_msg.created_at as last_message_created_at,
       last_msg.updated_at as last_message_updated_at,
-
+  
       msg_sender.id as last_message_sender_id,
       msg_sender.nombre as last_message_sender_nombre,
-
+  
       (
         SELECT COUNT(*) 
         FROM chat_messages unread
         WHERE unread.conversation_id = c.id
-        AND unread.emisor_id != ?  -- mensajes del otro usuario
+        AND unread.emisor_id != ? 
         AND unread.read_at IS NULL
       ) as unread_count
-
+  
     FROM chat_conversations c
     JOIN users u ON 
       CASE 
@@ -286,8 +288,11 @@ async function getFormattedConversation(conversationId, userId) {
       ) m2 ON m1.conversation_id = m2.conversation_id AND m1.created_at = m2.max_date
     ) last_msg ON last_msg.conversation_id = c.id
     LEFT JOIN users msg_sender ON last_msg.emisor_id = msg_sender.id
-    WHERE c.id = ? AND (c.emisor_id = ? OR c.receptor_id = ?)
+    WHERE c.id = ? 
+      AND (c.emisor_id = ? OR c.receptor_id = ?)
+      AND c.deleted_at IS NULL 
   `, [userId, userId, conversationId, userId, userId]);
+  
 
   if (!result.length) return null;
 
@@ -407,6 +412,7 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       FROM chat_messages m
       JOIN users u ON m.emisor_id = u.id
       WHERE m.id = ?
+        AND m.deleted_at IS NULL
     `, [message.insertId]);
 
     // 4. Obtener conversaciones formateadas para ambos usuarios
@@ -498,10 +504,11 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
       m.oferta_precio,
       u.id as emisor_id,
       u.nombre as emisor_nombre
-    FROM chat_messages m
-    JOIN users u ON u.id = m.emisor_id
-    WHERE m.conversation_id = ?
-    ORDER BY m.id ASC
+      FROM chat_messages m
+      JOIN users u ON u.id = m.emisor_id
+      WHERE m.conversation_id = ?
+        AND m.deleted_at IS NULL
+      ORDER BY m.id ASC
     `, [conversationId]);
 
     // Si un mensaje tiene una publicación asociada, traemos los datos completos
@@ -708,6 +715,7 @@ io.on('connection', async (socket) => {
         FROM chat_messages m
         JOIN users u ON m.emisor_id = u.id
         WHERE m.id = ?
+          AND m.deleted_at IS NULL
       `, [message.insertId]);
       
       const mensajeFormateado = formatMessage(completeMessage[0]);

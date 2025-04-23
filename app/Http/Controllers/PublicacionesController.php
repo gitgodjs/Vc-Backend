@@ -130,7 +130,8 @@ class PublicacionesController extends Controller
         $itsMe = $user->id === $publicacion->id_user;
     
         $yaFueOfertada = false;
-    
+        $mensajeOferta = null;
+
         if (!$itsMe) {
             $conversacion = ChatConversacion::where(function ($query) use ($user, $publicacion) {
                 $query->where('emisor_id', $user->id)
@@ -141,14 +142,19 @@ class PublicacionesController extends Controller
             })->first();
     
             if ($conversacion) {
-                $yaFueOfertada = ChatMensaje::where('conversation_id', $conversacion->id)
+                $mensaje = ChatMensaje::where('conversation_id', $conversacion->id)
                     ->where('publicacion_id', $publicacion->id)
-                    ->exists();
-            }
+                    ->first();
+    
+                if ($mensaje) {
+                    $yaFueOfertada = true;
+                    $mensajeOferta = $mensaje; 
+                };
+            };
     
             $publicacion->visitas += 1;
             $publicacion->save();
-        }
+        };
     
         $imagenesUrls = [];
         foreach ($publicacion->imagenes as $imagen) {
@@ -194,6 +200,7 @@ class PublicacionesController extends Controller
             "userPublicacion" => $userPublicacion,
             "itsMe" => $itsMe,
             "ofertaExistente" => $yaFueOfertada,
+            "mensajeOferta" => $mensajeOferta,
         ], 200);
     }    
 
@@ -614,6 +621,37 @@ class PublicacionesController extends Controller
             "publicaciones" => $publicaciones->items(),
             "hasMore" => $publicaciones->hasMorePages(),
             "publicacionesTotales" => $publicaciones->total()
+        ], 200);
+    }
+
+    public function eliminarOferta(Request $request) {
+        $user = auth()->user();
+
+        if(!$user) {
+            return response()->json([
+                "Mensaje" => "Este usuario no existe"
+            ], 404);
+        };
+
+        $mensaje = ChatMensaje::find($request->oferta_id);
+
+        if(!$mensaje) {
+            return response()->json([
+                "Mensaje" => "Esta oferta no existe"
+            ], 400);
+        };
+
+        $mensaje->delete();
+
+        $conversacion = ChatConversacion::find($mensaje->conversation_id);
+        $mensajes = ChatMensaje::where("conversation_id", $conversacion->id)->count();
+
+        if($mensajes < 1) {
+            $conversacion->delete();
+        };
+
+        return response()->json([
+            "Mensaje" => "Conversacion y mensaje encontrados!"
         ], 200);
     }
 }

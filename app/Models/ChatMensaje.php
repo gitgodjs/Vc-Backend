@@ -18,8 +18,6 @@ class ChatMensaje extends Model
         'emisor_id',
         'content',
         'read_at',
-        'publicacion_id',
-        'oferta_precio',
     ];
 
     protected $casts = [

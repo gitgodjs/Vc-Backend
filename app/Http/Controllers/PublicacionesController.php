@@ -15,6 +15,7 @@ use Illuminate\Http\Request;
 use App\Models\ChatMensaje;
 use App\Models\ChatConversacion;
 use App\Models\ImagePublicacion;
+use App\Models\PublicacionOferta;
 use App\Models\PublicacionGuardada;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
@@ -29,7 +30,7 @@ class PublicacionesController extends Controller
         $prenda = Prendas::where("prenda", $request->categoria["name"])->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
-
+        
         $publicacion = Publicacion::create([
             'id_user' => $user->id, 
             'nombre' => $request->titulo,
@@ -142,13 +143,17 @@ class PublicacionesController extends Controller
             })->first();
     
             if ($conversacion) {
-                $mensaje = ChatMensaje::where('conversation_id', $conversacion->id)
-                    ->where('publicacion_id', $publicacion->id)
-                    ->first();
-    
-                if ($mensaje) {
+                $oferta = PublicacionOferta::whereHas('mensaje', function ($q) use ($conversacion) {
+                    $q->where('conversation_id', $conversacion->id);
+                })
+                ->where('publicacion_id', $publicacion->id)
+                ->whereNull('deleted_at')
+                ->with('mensaje')
+                ->first();
+            
+                if ($oferta) {
                     $yaFueOfertada = true;
-                    $mensajeOferta = $mensaje; 
+                    $mensajeOferta = $oferta->mensaje;
                 };
             };
     
@@ -627,31 +632,86 @@ class PublicacionesController extends Controller
     public function eliminarOferta(Request $request) {
         $user = auth()->user();
 
-        if(!$user) {
+        if (!$user) {
             return response()->json([
                 "Mensaje" => "Este usuario no existe"
             ], 404);
-        };
+        }
 
-        $mensaje = ChatMensaje::find($request->oferta_id);
+        // Buscar la oferta en base al ID recibido
+        $oferta = PublicacionOferta::find($request->oferta_id);
 
-        if(!$mensaje) {
+        if (!$oferta) {
             return response()->json([
                 "Mensaje" => "Esta oferta no existe"
             ], 400);
-        };
+        }
 
-        $mensaje->delete();
+        $mensaje = ChatMensaje::find($oferta->mensaje_id);
+
+        if ($mensaje) {
+            $mensaje->delete(); 
+        }
+
+        $oferta->delete();
 
         $conversacion = ChatConversacion::find($mensaje->conversation_id);
-        $mensajes = ChatMensaje::where("conversation_id", $conversacion->id)->count();
 
-        if($mensajes < 1) {
-            $conversacion->delete();
-        };
+        if ($conversacion) {
+            $cantidadMensajes = ChatMensaje::where("conversation_id", $conversacion->id)
+                ->whereNull("deleted_at")
+                ->count();
+
+            if ($cantidadMensajes < 1) {
+                $conversacion->delete(); 
+            }
+        }
 
         return response()->json([
-            "Mensaje" => "Conversacion y mensaje encontrados!"
+            "Mensaje" => "Oferta y mensaje eliminados. Conversación verificada."
+        ], 200);
+    }
+
+    public function getPublicacionesEnVenta($page) {
+        $limit = 5;
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404); 
+        };
+
+        $user = User::find($user->id);
+
+        $offset = ($page - 1) * $limit;
+    
+        $publicaciones = Publicacion::where("id_user", $user->id)
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    
+        Carbon::setLocale('es');
+        
+        $publicacionesFormateadas = $publicaciones->map(function ($publicacion) use ($user) {
+            return [
+                'id' => $publicacion->id,
+                'id_creador' => $publicacion->id_user,
+                'precio' => $publicacion->precio,
+                'imagenUrl' => $publicacion->imagen,
+                'estado_publicacion' => $publicacion->estado_publicacion,
+            ];
+        });
+
+        $publicacionesTotales = Publicacion::where("id_user", $user->id)->count();
+        $hasMore = ($publicacionesTotales > $offset + $limit);
+            
+        return response()->json([
+            'message' => 'Publicaciones obtenidas!',
+            'publicaciones' => $publicacionesFormateadas,
+            'publicacionesTotales' => $publicacionesTotales,
+            'page' => $page,
+            'hasMore' => $hasMore
         ], 200);
     }
 }

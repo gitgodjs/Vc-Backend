@@ -362,7 +362,7 @@ function formatMessage(m) {
 restApp.post('/api/chat/ofertar', async (req, res) => {
   try {
     const { publicacion, mensaje, ofertador, precio } = req.body;
-    
+
     if (!ofertador?.id || !publicacion?.creador?.id) {
       throw new Error('Datos incompletos');
     }
@@ -382,7 +382,6 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
     let conversation_id;
 
     if (existing.length > 0) {
-      // Si ya existe, usamos su ID y actualizamos la fecha
       conversation_id = existing[0].id;
       await db.query(`
         UPDATE chat_conversations 
@@ -390,7 +389,6 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
         WHERE id = ?
       `, [conversation_id]);
     } else {
-      // Si no existe, la creamos
       const [conversation] = await db.query(`
         INSERT INTO chat_conversations (emisor_id, receptor_id, created_at)
         VALUES (?, ?, NOW())
@@ -398,28 +396,36 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       conversation_id = conversation.insertId;
     }
 
-    // 2. Guardar mensaje
+    // 2. Guardar mensaje SIN publicacion_id ni oferta_precio
     const [message] = await db.query(`
       INSERT INTO chat_messages 
-      (conversation_id, emisor_id, content, created_at, publicacion_id, oferta_precio)
-      VALUES (?, ?, ?, NOW(), ?, ?)
-    `, [conversation_id, emisor_id, mensaje, publicacion_id, precioFormateado]);
+      (conversation_id, emisor_id, content, created_at)
+      VALUES (?, ?, ?, NOW())
+    `, [conversation_id, emisor_id, mensaje]);
 
+    const mensaje_id = message.insertId;
 
-    // 3. Obtener datos completos del mensaje
+    // 3. Insertar la oferta en publicaciones_ofertas
+    await db.query(`
+      INSERT INTO publicaciones_ofertas 
+      (mensaje_id, publicacion_id, precio, estado_oferta_id, created_at)
+      VALUES (?, ?, ?, 1, NOW())
+    `, [mensaje_id, publicacion_id, precioFormateado]);
+
+    // 4. Obtener datos completos del mensaje
     const [messageData] = await db.query(`
       SELECT m.*, u.nombre as emisor_nombre 
       FROM chat_messages m
       JOIN users u ON m.emisor_id = u.id
       WHERE m.id = ?
         AND m.deleted_at IS NULL
-    `, [message.insertId]);
+    `, [mensaje_id]);
 
-    // 4. Obtener conversaciones formateadas para ambos usuarios
+    // 5. Obtener conversaciones formateadas para ambos usuarios
     const formattedForEmisor = await getFormattedConversation(conversation_id, emisor_id);
     const formattedForReceptor = await getFormattedConversation(conversation_id, receptor_id);
 
-    // 5. Emitir eventos al receptor y al emisor **después de que los datos se hayan guardado correctamente**
+    // 6. Emitir eventos
     io.to(`user_${receptor_id}`).emit('new_message', formatMessage(messageData[0]));
 
     io.to(`user_${emisor_id}`).emit('new_conversation', {
@@ -429,15 +435,13 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       conversation: formattedForReceptor
     });
 
-    // 🔥 Emitir evento especial de oferta recibida (solo receptor)
     io.to(`user_${receptor_id}`).emit('oferta:recibida', {
       ofertador: ofertador.nombre,
       mensaje,
-      precio: req.body.precio, // lo mandás desde el frontend
+      precio: req.body.precio,
       publicacion: publicacion.nombre
     });
 
-    // 6. Responder al cliente
     res.json({
       success: true,
       conversation_id,
@@ -453,10 +457,100 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
   }
 });
 
+/* 
+  Arreglar el hecho de que a veces se crean y a veces no los objetos de publiciones_ventas
+  Error al enviar el mensaje!
+
+  hacer lo mismo con el rechazar
+*/
+
+restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
+  try {
+    const { oferta_id, comprador_id, vendedor_id, publicacion_id, precio } = req.body;
+
+    if (!oferta_id || !comprador_id || !vendedor_id || !publicacion_id || !precio) {
+      throw new Error('Datos incompletos para aceptar la oferta');
+    }
+
+    // 1. Verificar si ya existe una venta con el mismo oferta_id
+    const [ventaExistente] = await db.query(`
+      SELECT * FROM publicaciones_ventas WHERE oferta_id = ?
+    `, [oferta_id]);
+
+    if (ventaExistente) {
+      throw new Error(`Ya existe una venta con esta oferta ${oferta_id}`);
+    }
+
+    // 2. Cambiar estado de la oferta a "aceptada"
+    await db.query(`
+      UPDATE publicaciones_ofertas
+      SET estado_oferta_id = 2, oferta_respondida_at = NOW()
+      WHERE id = ?
+    `, [oferta_id]);
+
+    // 3. Insertar en publicaciones_ventas
+    await db.query(`
+      INSERT INTO publicaciones_ventas 
+      (id_publicacion, id_vendedor, id_comprador, oferta_id, precio)
+      VALUES (?, ?, ?, ?, ?)
+    `, [publicacion_id, vendedor_id, comprador_id, oferta_id, precio]);
+
+    // 4. Emitir mensaje al comprador vía WebSocket
+    const socketId = await redisClient.hGet('userSockets', String(comprador_id));
+    console.log('socketId:', socketId); // Log para verificar el socketId
+    if (socketId) {
+      io.to(socketId).emit('new_message', {
+        content: `Hola! Acepto tu oferta por ${precio} ARS. Podes escribirme por cualquier consulta!`,
+        tipo: 'sistema'
+      });
+    } else {
+      console.log('No se encontró el socketId para el comprador:', comprador_id);
+    }
+
+    res.json({ success: true, message: 'Oferta aceptada y venta registrada' });
+
+  } catch (error) {
+    console.error('Error al aceptar oferta:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+restApp.post('/api/chat/oferta/rechazar', async (req, res) => {
+  try {
+    const { oferta_id, comprador_id, nombre_publicacion, nombre_emisor } = req.body;
+
+    if (!oferta_id || !comprador_id || !nombre_publicacion || !nombre_emisor) {
+      throw new Error('Faltan datos necesarios para rechazar la oferta');
+    }
+
+    // 1. Cambiar estado de la oferta a "rechazada"
+    await db.query(`
+      UPDATE publicaciones_ofertas
+      SET estado_oferta_id = 3, oferta_respondida_at = NOW()
+      WHERE id = ?
+    `, [oferta_id]);
+
+    // 2. Emitir mensaje al ofertador
+    const socketId = await redisClient.hGet('userSockets', comprador_id);
+    if (socketId) {
+      io.to(socketId).emit('new_message', {
+        content: `Hola ${nombre_emisor}, no acepto tu oferta por ${nombre_publicacion}.`,
+        tipo: 'sistema'
+      });
+    }
+
+    res.json({ success: true, message: 'Oferta rechazada correctamente' });
+
+  } catch (error) {
+    console.error('Error al rechazar oferta:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) => {
   try {
     const conversationId = parseInt(req.params.conversation_id);
-    const userId = parseInt(req.query.user_id); // lo pasás por query string
+    const userId = parseInt(req.query.user_id);
 
     if (isNaN(conversationId) || isNaN(userId)) {
       return res.status(400).json({
@@ -465,45 +559,38 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
       });
     }
 
-    // 1. Verificar si el usuario forma parte de la conversación
     const [convCheck] = await db.query(`
       SELECT emisor_id, receptor_id FROM chat_conversations 
       WHERE id = ? AND (emisor_id = ? OR receptor_id = ?)
     `, [conversationId, userId, userId]);
-    
+
     if (!convCheck.length) {
       return res.status(403).json({
         success: false,
         error: 'No tenés permiso para ver esta conversación'
       });
     }
-    
-    // ⚠️ Asegurate de acceder a convCheck[0] para extraer los IDs
+
     const { emisor_id, receptor_id } = convCheck[0];
-    
-    // 🧠 Determinar el otro usuario
     const otherUserId = userId === emisor_id ? receptor_id : emisor_id;
-    
-    // 🔎 Traer datos del otro usuario
+
     const [otherUserData] = await db.query(`
       SELECT u.id, u.nombre, u.correo, img.url as image_url
       FROM users u
       LEFT JOIN images_users img ON img.id_usuario = u.id
       WHERE u.id = ?
       LIMIT 1
-    `, [otherUserId]);       
+    `, [otherUserId]);
 
-    // 2. Obtener mensajes de la conversación
+    // 1️⃣ Obtener mensajes
     const [messages] = await db.query(`
       SELECT 
-      m.id,
-      m.content,
-      m.created_at,
-      m.read_at,
-      m.publicacion_id,
-      m.oferta_precio,
-      u.id as emisor_id,
-      u.nombre as emisor_nombre
+        m.id,
+        m.content,
+        m.created_at,
+        m.read_at,
+        u.id as emisor_id,
+        u.nombre as emisor_nombre
       FROM chat_messages m
       JOIN users u ON u.id = m.emisor_id
       WHERE m.conversation_id = ?
@@ -511,34 +598,47 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
       ORDER BY m.id ASC
     `, [conversationId]);
 
-    // Si un mensaje tiene una publicación asociada, traemos los datos completos
-    for (const m of messages) {
-      if (m.publicacion_id) {
-        const [pubData] = await db.query(`
-          SELECT id, id_user, nombre, descripcion, precio, talle, tipo, ubicacion 
-          FROM publicaciones
-          WHERE id = ?
-        `, [m.publicacion_id]);
-      
-        const publicacion = pubData[0] || null;
-      
-        if (publicacion) {
-          const [imgData] = await db.query(`
-            SELECT url FROM images_publicaciones
-            WHERE id_publicacion = ?
-            ORDER BY created_at ASC
-            LIMIT 1
-          `, [publicacion.id]);
-      
-          publicacion.imagen_url = imgData[0]?.url 
-            ? `http://localhost:8080/storage/${imgData[0].url}` 
-            : null;
-        };
-      
-        m.publicacion = publicacion;
-      };      
-    };
-    
+    // 2️⃣ Consultar ofertas relacionadas a los mensajes
+    const mensajeIds = messages.map(m => m.id);
+    let ofertasByMensaje = {};
+
+    if (mensajeIds.length) {
+      const [ofertas] = await db.query(`
+        SELECT o.*, p.nombre as publicacion_nombre, p.descripcion, p.talle, p.tipo, 
+               p.ubicacion, p.precio as precio_publicacion,
+               (SELECT img.url FROM images_publicaciones img WHERE img.id_publicacion = p.id ORDER BY img.created_at ASC LIMIT 1) as imagen_url
+        FROM publicaciones_ofertas o
+        JOIN publicaciones p ON p.id = o.publicacion_id
+        WHERE o.mensaje_id IN (?)
+      `, [mensajeIds]);
+
+      // Asignamos la oferta al mensaje correspondiente
+      ofertas.forEach(oferta => {
+        if (!ofertasByMensaje[oferta.mensaje_id]) {
+          ofertasByMensaje[oferta.mensaje_id] = []; // Inicializamos un array para este mensaje si no existe
+        }
+
+        // Aquí solo estamos añadiendo la oferta y la publicación asociada
+        ofertasByMensaje[oferta.mensaje_id].push({
+          oferta_id: oferta.id,
+          precio_oferta: oferta.precio,
+          estado_oferta_id: oferta.estado_oferta_id,
+          oferta_respondida_at: oferta.oferta_respondida_at,
+          publicacion: {
+            id: oferta.publicacion_id,
+            nombre: oferta.publicacion_nombre,
+            descripcion: oferta.descripcion,
+            precio: oferta.precio,
+            talle: oferta.talle,
+            tipo: oferta.tipo,
+            ubicacion: oferta.ubicacion,
+            imagen_url: oferta.imagen_url ? `http://localhost:8080/storage/${oferta.imagen_url}` : null
+          }
+        });
+      });
+    }
+
+    // 3️⃣ Devolver la respuesta con los mensajes y sus ofertas relacionadas (si existen)
     res.json({
       success: true,
       conversation_id: conversationId,
@@ -549,14 +649,13 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
         content: m.content,
         created_at: m.created_at,
         read_at: m.read_at,
-        oferta_precio: m.oferta_precio,
-        publicacion: m.publicacion || null,
         emisor: {
           id: m.emisor_id,
           nombre: m.emisor_nombre
-        }
-      }))      
-    });       
+        },
+        oferta: ofertasByMensaje[m.id] || null // Incluir las ofertas asociadas, si existen
+      }))
+    });
 
   } catch (error) {
     console.error('❌ Error al obtener conversación:', error);

@@ -8,6 +8,7 @@ use App\Http\Controllers\ImageUserController;
 use App\Http\Controllers\PublicacionesController;
 use App\Http\Controllers\ImagePublicacionController;
 use App\Http\Controllers\ChatController;
+use App\Http\Controllers\PlanesController;
 
 // Principal usuarios
 Route::post('register', [AuthController::class, 'register']);
@@ -48,9 +49,11 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     Route::post('publicaciones/getPublicacionesRecomendadas/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesRecomendadas']);
     Route::post('publicaciones/getPublicacionesGuardadasHome/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasHome']);
     Route::post('publicaciones/getPublicacionesExplorar/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
+    
     // Para perfil
     Route::post('publicaciones/getPublicacionesUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
     Route::get('publicaciones/getPublicacionesGuardadasProfile/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
+    Route::get('publicaciones/getPublicacionesEnVenta/{page}', [PublicacionesController::class, 'getPublicacionesEnVenta']);
 
     // Para buscador
     Route::post('publicaciones/getPublicacionesFiltro/{page}', [PublicacionesController::class, 'getPublicacionesFiltro']);
@@ -74,3 +77,7 @@ Route::get('chat/obtenerConversation/{conversation_id}', [ChatController::class,
 
 // Ofertas a publicaciones
 Route::post('publicaciones/eliminarOferta', [PublicacionesController::class, 'eliminarOferta']);
+
+// Obtener planes o plan
+Route::get('planes/obtenerPlanes', [PlanesController::class, 'obtenerPlanes']);
+Route::get('planes/obtenerPlanActual', [PlanesController::class, 'obtenerPlanActual']);

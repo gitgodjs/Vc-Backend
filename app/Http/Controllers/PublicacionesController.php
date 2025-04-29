@@ -149,12 +149,13 @@ class PublicacionesController extends Controller
                 ->where('publicacion_id', $publicacion->id)
                 ->whereNull('deleted_at')
                 ->with('mensaje')
+                ->orderBy('created_at', 'desc')
                 ->first();
             
-                if ($oferta) {
+                if ($oferta && $oferta->estado_oferta_id != 3) {
                     $yaFueOfertada = true;
                     $mensajeOferta = $oferta->mensaje;
-                };
+                }
             };
     
             $publicacion->visitas += 1;

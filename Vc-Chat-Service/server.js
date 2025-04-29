@@ -457,14 +457,8 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
   }
 });
 
-/* 
-  Arreglar el hecho de que a veces se crean y a veces no los objetos de publiciones_ventas
-  Error al enviar el mensaje!
-
-  hacer lo mismo con el rechazar
-*/
-
 restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
+  let connection;
   try {
     const { oferta_id, comprador_id, vendedor_id, publicacion_id, precio } = req.body;
 
@@ -472,78 +466,168 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
       throw new Error('Datos incompletos para aceptar la oferta');
     }
 
-    // 1. Verificar si ya existe una venta con el mismo oferta_id
-    const [ventaExistente] = await db.query(`
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [oferta] = await connection.query(`
+      SELECT po.*, cm.conversation_id 
+      FROM publicaciones_ofertas po
+      JOIN chat_messages cm ON po.mensaje_id = cm.id
+      WHERE po.id = ? AND po.estado_oferta_id = 1
+      FOR UPDATE
+    `, [oferta_id]);
+
+    if (oferta.length === 0) {
+      throw new Error('La oferta no existe o ya fue procesada');
+    }
+
+    const [venta] = await connection.query(`
       SELECT * FROM publicaciones_ventas WHERE oferta_id = ?
     `, [oferta_id]);
 
-    if (ventaExistente) {
+    if (venta.length > 0) {
       throw new Error(`Ya existe una venta con esta oferta ${oferta_id}`);
     }
 
-    // 2. Cambiar estado de la oferta a "aceptada"
-    await db.query(`
+    await connection.query(`
+      UPDATE publicaciones
+      SET estado_publicacion = 2, updated_at = NOW()
+      WHERE id = ?
+    `, [publicacion_id]);
+
+    await connection.query(`
       UPDATE publicaciones_ofertas
       SET estado_oferta_id = 2, oferta_respondida_at = NOW()
       WHERE id = ?
     `, [oferta_id]);
 
-    // 3. Insertar en publicaciones_ventas
-    await db.query(`
+    await connection.query(`
       INSERT INTO publicaciones_ventas 
-      (id_publicacion, id_vendedor, id_comprador, oferta_id, precio)
-      VALUES (?, ?, ?, ?, ?)
+      (id_publicacion, id_vendedor, id_comprador, oferta_id, precio, created_at)
+      VALUES (?, ?, ?, ?, ?, NOW())
     `, [publicacion_id, vendedor_id, comprador_id, oferta_id, precio]);
 
-    // 4. Emitir mensaje al comprador vía WebSocket
-    const socketId = await redisClient.hGet('userSockets', String(comprador_id));
-    console.log('socketId:', socketId); // Log para verificar el socketId
-    if (socketId) {
-      io.to(socketId).emit('new_message', {
-        content: `Hola! Acepto tu oferta por ${precio} ARS. Podes escribirme por cualquier consulta!`,
-        tipo: 'sistema'
-      });
-    } else {
-      console.log('No se encontró el socketId para el comprador:', comprador_id);
-    }
+    const [message] = await connection.query(`
+      INSERT INTO chat_messages 
+      (conversation_id, emisor_id, content, created_at)
+      VALUES (?, ?, ?, NOW())
+    `, [oferta[0].conversation_id, vendedor_id, `Hola! He aceptado tu oferta de $${precio}. Puedes consultarme por cualquier cosa! Gracias.`]);
 
-    res.json({ success: true, message: 'Oferta aceptada y venta registrada' });
+    const [messageData] = await connection.query(`
+      SELECT m.*, u.nombre as emisor_nombre 
+      FROM chat_messages m
+      JOIN users u ON m.emisor_id = u.id
+      WHERE m.id = ?
+    `, [message.insertId]);
+
+    await connection.commit();
+
+    const m = {
+      id: messageData[0].id,
+      conversation_id: messageData[0].conversation_id,
+      emisor_id: messageData[0].emisor_id,
+      emisor_nombre: messageData[0].emisor_nombre,
+      content: messageData[0].content,
+      created_at: messageData[0].created_at,
+    };
+
+    // Enviar el nuevo mensaje a ambos usuarios
+    io.to(`user_${comprador_id}`).emit('new_message', formatMessage(m));
+    io.to(`user_${vendedor_id}`).emit('new_message', formatMessage(m));
+
+    // Enviar evento de oferta aceptada a ambos
+    io.to(`user_${comprador_id}`).emit('oferta:aceptada', { oferta_id });
+    io.to(`user_${vendedor_id}`).emit('oferta:aceptada', { oferta_id });
+
+    res.json({ 
+      success: true, 
+      message: 'Oferta aceptada y venta registrada',
+      message_id: message.insertId
+    });
 
   } catch (error) {
+    if (connection) await connection.rollback();
     console.error('Error al aceptar oferta:', error);
     res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
 restApp.post('/api/chat/oferta/rechazar', async (req, res) => {
+  let connection;
   try {
-    const { oferta_id, comprador_id, nombre_publicacion, nombre_emisor } = req.body;
+    const { oferta_id, comprador_id, vendedor_id, publicacion_id, precio } = req.body;
 
-    if (!oferta_id || !comprador_id || !nombre_publicacion || !nombre_emisor) {
-      throw new Error('Faltan datos necesarios para rechazar la oferta');
+    if (!oferta_id || !comprador_id || !vendedor_id || !publicacion_id || !precio) {
+      throw new Error('Datos incompletos para rechazar la oferta');
     }
 
-    // 1. Cambiar estado de la oferta a "rechazada"
-    await db.query(`
+    connection = await db.getConnection();
+    await connection.beginTransaction();
+
+    const [oferta] = await connection.query(`
+      SELECT po.*, cm.conversation_id 
+      FROM publicaciones_ofertas po
+      JOIN chat_messages cm ON po.mensaje_id = cm.id
+      WHERE po.id = ? AND po.estado_oferta_id = 1
+      FOR UPDATE
+    `, [oferta_id]);
+
+    if (oferta.length === 0) {
+      throw new Error('La oferta no existe o ya fue procesada');
+    }
+
+    await connection.query(`
       UPDATE publicaciones_ofertas
       SET estado_oferta_id = 3, oferta_respondida_at = NOW()
       WHERE id = ?
     `, [oferta_id]);
 
-    // 2. Emitir mensaje al ofertador
-    const socketId = await redisClient.hGet('userSockets', comprador_id);
-    if (socketId) {
-      io.to(socketId).emit('new_message', {
-        content: `Hola ${nombre_emisor}, no acepto tu oferta por ${nombre_publicacion}.`,
-        tipo: 'sistema'
-      });
-    }
+    const [message] = await connection.query(`
+      INSERT INTO chat_messages 
+      (conversation_id, emisor_id, content, created_at)
+      VALUES (?, ?, ?, NOW())
+    `, [oferta[0].conversation_id, vendedor_id, `Hola! Gracias por tu oferta, pero la he rechazado.`]);
 
-    res.json({ success: true, message: 'Oferta rechazada correctamente' });
+    const [messageData] = await connection.query(`
+      SELECT m.*, u.nombre as emisor_nombre 
+      FROM chat_messages m
+      JOIN users u ON m.emisor_id = u.id
+      WHERE m.id = ?
+    `, [message.insertId]);
+
+    await connection.commit();
+
+    const m = {
+      id: messageData[0].id,
+      conversation_id: messageData[0].conversation_id,
+      emisor_id: messageData[0].emisor_id,
+      emisor_nombre: messageData[0].emisor_nombre,
+      content: messageData[0].content,
+      created_at: messageData[0].created_at,
+    };
+
+    // Enviar el nuevo mensaje a ambos usuarios
+    io.to(`user_${comprador_id}`).emit('new_message', formatMessage(m));
+    io.to(`user_${vendedor_id}`).emit('new_message', formatMessage(m));
+
+    // Enviar evento de oferta rechazada a ambos
+    io.to(`user_${comprador_id}`).emit('oferta:rechazada', { oferta_id });
+    io.to(`user_${vendedor_id}`).emit('oferta:rechazada', { oferta_id });
+
+    res.json({ 
+      success: true, 
+      message: 'Oferta rechazada con éxito',
+      message_id: message.insertId
+    });
 
   } catch (error) {
+    if (connection) await connection.rollback();
     console.error('Error al rechazar oferta:', error);
     res.status(500).json({ success: false, error: error.message });
+  } finally {
+    if (connection) connection.release();
   }
 });
 
@@ -622,7 +706,7 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
         ofertasByMensaje[oferta.mensaje_id].push({
           oferta_id: oferta.id,
           precio_oferta: oferta.precio,
-          estado_oferta_id: oferta.estado_oferta_id,
+          estado_oferta: oferta.estado_oferta_id,
           oferta_respondida_at: oferta.oferta_respondida_at,
           publicacion: {
             id: oferta.publicacion_id,
@@ -835,7 +919,7 @@ io.on('connection', async (socket) => {
       console.error('Error al enviar mensaje:', error);
       callback({ status: 'error', error: error.message });
     }
-  });
+  });  
 
   // 7. Manejar lectura de mensajes
   socket.on('messages_read', async ({ conversation_id, user_id }) => {

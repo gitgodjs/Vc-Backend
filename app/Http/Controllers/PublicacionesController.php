@@ -13,9 +13,10 @@ use App\Models\Publicacion;
 use App\Models\RopaCategorias;
 use Illuminate\Http\Request;
 use App\Models\ChatMensaje;
+use App\Models\PublicacionVenta;
+use App\Models\PublicacionOferta;
 use App\Models\ChatConversacion;
 use App\Models\ImagePublicacion;
-use App\Models\PublicacionOferta;
 use App\Models\PublicacionGuardada;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
@@ -681,38 +682,183 @@ class PublicacionesController extends Controller
             return response()->json([
                 "mensaje" => "Usuario no encontrado!"
             ], 404); 
-        };
-
-        $user = User::find($user->id);
+        }
 
         $offset = ($page - 1) * $limit;
-    
-        $publicaciones = Publicacion::where("id_user", $user->id)
+
+        // Paginadas
+        $publicaciones = PublicacionVenta::where("id_vendedor", $user->id)
             ->skip($offset)
             ->take($limit)
             ->get();
-    
+
         Carbon::setLocale('es');
-        
-        $publicacionesFormateadas = $publicaciones->map(function ($publicacion) use ($user) {
+
+        $publicacionesFormateadas = $publicaciones->map(function ($publicacionVenta) use ($user) {
+            $compradorPublicacion = User::find($publicacionVenta->id_comprador);
+            $publicacion = Publicacion::find($publicacionVenta->id_publicacion);
+            $publicacion->imagenUrl = $publicacion->imagen;
+
+            $oferta = PublicacionOferta::find($publicacionVenta->oferta_id);
+            if (!$oferta) return null;
+
+            $mensajeInicial = ChatMensaje::find($oferta->mensaje_id);
+            if (!$mensajeInicial) return null;
+
             return [
-                'id' => $publicacion->id,
-                'id_creador' => $publicacion->id_user,
-                'precio' => $publicacion->precio,
-                'imagenUrl' => $publicacion->imagen,
-                'estado_publicacion' => $publicacion->estado_publicacion,
+                'id' => $publicacionVenta->id,
+                'id_creador_publicacion' => $publicacion->id_user,
+                'precio' => $publicacionVenta->precio,
+                'imagenUrl' => $publicacion->imagenUrl,
+                'estado_venta' => $publicacionVenta->estado_venta,
+                'publicacionOriginal' => $publicacion,
+                'compradorPublicacion' => $compradorPublicacion,
+                'conversacion_id' => $mensajeInicial->conversation_id,
             ];
-        });
+        })->filter(); 
 
         $publicacionesTotales = Publicacion::where("id_user", $user->id)->count();
         $hasMore = ($publicacionesTotales > $offset + $limit);
-            
+
         return response()->json([
             'message' => 'Publicaciones obtenidas!',
-            'publicaciones' => $publicacionesFormateadas,
+            'publicaciones' => $publicacionesFormateadas->values(), 
             'publicacionesTotales' => $publicacionesTotales,
             'page' => $page,
-            'hasMore' => $hasMore
+            'hasMore' => $hasMore,
         ], 200);
     }
+
+    public function getEstadisticas($periodo) {
+        $user = auth()->user();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404);
+        }
+    
+        $ventas = PublicacionVenta::where("id_vendedor", $user->id)->get();
+        $estadisticas = [];
+
+        $publicacionesDestacadas = null;
+        $inicioMes = Carbon::now()->startOfMonth();
+        $finMes = Carbon::now()->endOfMonth();
+
+        $publicacionesMes = Publicacion::where('id_user', $user->id)
+            ->whereNull('deleted_at')
+            ->whereBetween('created_at', [$inicioMes, $finMes])
+            ->get();
+
+        if ($publicacionesMes->count()) {
+            $masVista = $publicacionesMes->sortByDesc('visitas')->first();
+
+            $masGuardada = $publicacionesMes->sortByDesc(function ($pub) {
+                return PublicacionGuardada::where('id_publicacion', $pub->id)->count();
+            })->first();
+
+            $masOfertada = $publicacionesMes->sortByDesc(function ($pub) {
+                return PublicacionOferta::where('publicacion_id', $pub->id)->count();
+            })->first();
+
+            $publicacionesDestacadas = [
+                'mas_vista' => $masVista,
+                'mas_guardada' => $masGuardada,
+                'mas_ofertada' => $masOfertada,
+            ];
+        }
+
+        if ($periodo === 'semana') {
+            $diasSemana = [
+                1 => ['nombre' => 'Lun', 'Ventas' => 0, 'Pendientes' => 0],
+                2 => ['nombre' => 'Mar', 'Ventas' => 0, 'Pendientes' => 0],
+                3 => ['nombre' => 'Mie', 'Ventas' => 0, 'Pendientes' => 0],
+                4 => ['nombre' => 'Jue', 'Ventas' => 0, 'Pendientes' => 0],
+                5 => ['nombre' => 'Vie', 'Ventas' => 0, 'Pendientes' => 0],
+                6 => ['nombre' => 'Sab', 'Ventas' => 0, 'Pendientes' => 0],
+                7 => ['nombre' => 'Dom', 'Ventas' => 0, 'Pendientes' => 0],
+            ];
+    
+            foreach ($ventas as $venta) {
+                $dia = Carbon::parse($venta->created_at)->dayOfWeekIso;
+    
+                if (!isset($diasSemana[$dia])) continue;
+    
+                if ($venta->estado_venta == 1) {
+                    $diasSemana[$dia]['Pendientes']++;
+                } else {
+                    $diasSemana[$dia]['Ventas']++;
+                }
+            }
+    
+            foreach ($diasSemana as $info) {
+                $estadisticas[] = [
+                    'dia' => $info['nombre'],
+                    'Ventas' => $info['Ventas'],
+                    'Pendientes' => $info['Pendientes'],
+                ];
+            }
+    
+        } elseif ($periodo === 'mes') {
+            // Inicializa todos los días del mes (1 al 31)
+            for ($i = 1; $i <= 31; $i++) {
+                $diasMes[str_pad($i, 2, '0', STR_PAD_LEFT)] = ['Ventas' => 0, 'Pendientes' => 0];
+            }
+    
+            foreach ($ventas as $venta) {
+                $dia = Carbon::parse($venta->created_at)->format('d');
+    
+                if ($venta->estado_venta == 1) {
+                    $diasMes[$dia]['Pendientes']++;
+                } else {
+                    $diasMes[$dia]['Ventas']++;
+                }
+            }
+    
+            foreach ($diasMes as $dia => $valores) {
+                $estadisticas[] = [
+                    'dia' => (int)$dia, // lo devuelvo como número
+                    'Ventas' => $valores['Ventas'],
+                    'Pendientes' => $valores['Pendientes'],
+                ];
+            }
+    
+        } elseif ($periodo === 'año') {
+            $meses = [
+                1 => 'Ene', 2 => 'Feb', 3 => 'Mar', 4 => 'Abr',
+                5 => 'May', 6 => 'Jun', 7 => 'Jul', 8 => 'Ago',
+                9 => 'Sep', 10 => 'Oct', 11 => 'Nov', 12 => 'Dic'
+            ];
+    
+            // Inicializa todos los meses
+            $datosMes = [];
+            foreach ($meses as $i => $nombre) {
+                $datosMes[$i] = ['Ventas' => 0, 'Pendientes' => 0];
+            }
+    
+            foreach ($ventas as $venta) {
+                $mes = Carbon::parse($venta->created_at)->month;
+    
+                if ($venta->estado_venta == 1) {
+                    $datosMes[$mes]['Pendientes']++;
+                } else {
+                    $datosMes[$mes]['Ventas']++;
+                }
+            }
+    
+            foreach ($datosMes as $mes => $valores) {
+                $estadisticas[] = [
+                    'mes' => $meses[$mes],
+                    'Ventas' => $valores['Ventas'],
+                    'Pendientes' => $valores['Pendientes'],
+                ];
+            }
+        }
+    
+        return response()->json([
+            "mensaje" => "Estadisticas obtenidas con exito",
+            "graficoVentas" => $estadisticas,
+            "publicacionesDestacadas" => $publicacionesDestacadas,
+        ], 200);
+    }      
 }

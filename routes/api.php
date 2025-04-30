@@ -81,3 +81,6 @@ Route::post('publicaciones/eliminarOferta', [PublicacionesController::class, 'el
 // Obtener planes o plan
 Route::get('planes/obtenerPlanes', [PlanesController::class, 'obtenerPlanes']);
 Route::get('planes/obtenerPlanActual', [PlanesController::class, 'obtenerPlanActual']);
+
+// Obtener estadisticas
+Route::get('estadisticas/getEstadisticas/{periodo}', [PublicacionesController::class, 'getEstadisticas']);

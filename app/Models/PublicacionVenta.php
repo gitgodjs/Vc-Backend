@@ -3,9 +3,11 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class PublicacionVenta extends Model
 {
+    use SoftDeletes;
     // Indicar que no usamos la convención de nombres pluralizados
     protected $table = 'publicaciones_ventas';
 

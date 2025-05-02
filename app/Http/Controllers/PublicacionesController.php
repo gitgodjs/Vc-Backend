@@ -694,10 +694,10 @@ class PublicacionesController extends Controller
 
         Carbon::setLocale('es');
 
-        $publicacionesFormateadas = $publicaciones->map(function ($publicacionVenta) use ($user) {
+        $publicacionesFormateadas = $publicaciones->map(function ($publicacionVenta) use ($user) {  
             $compradorPublicacion = User::find($publicacionVenta->id_comprador);
             $publicacion = Publicacion::find($publicacionVenta->id_publicacion);
-            $publicacion->imagenUrl = $publicacion->imagen;
+            if($publicacion->imagen != null) {$publicacion->imagenUrl = $publicacion->imagen;}
 
             $oferta = PublicacionOferta::find($publicacionVenta->oferta_id);
             if (!$oferta) return null;
@@ -737,7 +737,8 @@ class PublicacionesController extends Controller
                 "mensaje" => "Usuario no encontrado!"
             ], 404);
         }
-    
+        
+        $baseUrl = env('APP_URL');
         $ventas = PublicacionVenta::where("id_vendedor", $user->id)->get();
         $estadisticas = [];
 
@@ -751,22 +752,42 @@ class PublicacionesController extends Controller
             ->get();
 
         if ($publicacionesMes->count()) {
-            $masVista = $publicacionesMes->sortByDesc('visitas')->first();
-
+            $masVista = $publicacionesMes->where('visitas', '>', 0)->sortByDesc('visitas')->first();
             $masGuardada = $publicacionesMes->sortByDesc(function ($pub) {
                 return PublicacionGuardada::where('id_publicacion', $pub->id)->count();
+            })->filter(function ($pub) {
+                return PublicacionGuardada::where('id_publicacion', $pub->id)->count() > 0;
             })->first();
 
             $masOfertada = $publicacionesMes->sortByDesc(function ($pub) {
                 return PublicacionOferta::where('publicacion_id', $pub->id)->count();
+            })->filter(function ($pub) {
+                return PublicacionOferta::where('publicacion_id', $pub->id)->count() > 0;
             })->first();
 
             $publicacionesDestacadas = [
-                'mas_vista' => $masVista,
-                'mas_guardada' => $masGuardada,
-                'mas_ofertada' => $masOfertada,
+                'mas_vista' => $masVista ? [
+                    'id' => $masVista->id,
+                    'titulo' => $masVista->nombre ?? null,
+                    'precio' => $masVista->precio,
+                    'imagenUrl' => $masVista->imagen ? $baseUrl . "/storage/" . $masVista->imagen->url : null,
+                ] : null,
+
+                'mas_guardada' => $masGuardada ? [
+                    'id' => $masGuardada->id,
+                    'titulo' => $masGuardada->nombre ?? null,
+                    'precio' => $masGuardada->precio,
+                    'imagenUrl' => $masGuardada->imagen ? $baseUrl . "/storage/" . $masGuardada->imagen->url : null,
+                ] : null,
+
+                'mas_ofertada' => $masOfertada ? [
+                    'id' => $masOfertada->id,
+                    'titulo' => $masOfertada->nombre ?? null,
+                    'precio' => $masOfertada->precio,
+                    'imagenUrl' => $masOfertada->imagen ? $baseUrl . "/storage/" . $masOfertada->imagen->url : null,
+                ] : null,
             ];
-        }
+        };
 
         if ($periodo === 'semana') {
             $diasSemana = [

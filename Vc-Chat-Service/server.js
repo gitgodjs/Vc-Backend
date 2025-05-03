@@ -459,7 +459,7 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
 
 restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
   let connection;
-  try {
+  try {   
     const { oferta_id, comprador_id, vendedor_id, publicacion_id, precio } = req.body;
 
     if (!oferta_id || !comprador_id || !vendedor_id || !publicacion_id || !precio) {
@@ -469,6 +469,7 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
     connection = await db.getConnection();
     await connection.beginTransaction();
 
+    // Obtener la oferta aceptada
     const [oferta] = await connection.query(`
       SELECT po.*, cm.conversation_id 
       FROM publicaciones_ofertas po
@@ -481,6 +482,7 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
       throw new Error('La oferta no existe o ya fue procesada');
     }
 
+    // Verificar si ya existe venta
     const [venta] = await connection.query(`
       SELECT * FROM publicaciones_ventas WHERE oferta_id = ?
     `, [oferta_id]);
@@ -489,24 +491,77 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
       throw new Error(`Ya existe una venta con esta oferta ${oferta_id}`);
     }
 
+    // 1. Marcar la publicación como vendida
     await connection.query(`
       UPDATE publicaciones
       SET estado_publicacion = 2, updated_at = NOW()
       WHERE id = ?
     `, [publicacion_id]);
 
+    // 2. Marcar la oferta actual como aceptada
     await connection.query(`
       UPDATE publicaciones_ofertas
       SET estado_oferta_id = 2, oferta_respondida_at = NOW()
       WHERE id = ?
     `, [oferta_id]);
 
+    // 3. Registrar venta
     await connection.query(`
       INSERT INTO publicaciones_ventas 
       (id_publicacion, id_vendedor, id_comprador, oferta_id, precio, created_at)
       VALUES (?, ?, ?, ?, ?, NOW())
     `, [publicacion_id, vendedor_id, comprador_id, oferta_id, precio]);
 
+    // 4. Rechazar todas las otras ofertas activas de esta publicación
+    const [otrasOfertas] = await connection.query(`
+      SELECT po.*, cm.conversation_id, cm.emisor_id 
+      FROM publicaciones_ofertas po
+      JOIN chat_messages cm ON po.mensaje_id = cm.id
+      WHERE po.id != ? AND po.estado_oferta_id = 1 AND po.publicacion_id = ?
+    `, [oferta_id, publicacion_id]);    
+
+    for (const ofertaRechazada of otrasOfertas) {
+      // Cambiar el estado a rechazada
+      await connection.query(`
+        UPDATE publicaciones_ofertas
+        SET estado_oferta_id = 3, oferta_respondida_at = NOW()
+        WHERE id = ?
+      `, [ofertaRechazada.id]);
+
+      // Solo enviar mensaje si la oferta fue hecha en los últimos 7 días
+      const creada = new Date(ofertaRechazada.created_at);
+      const hace7Dias = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+      if (creada > hace7Dias) {
+        const [msg] = await connection.query(`
+          INSERT INTO chat_messages 
+          (conversation_id, emisor_id, content, created_at)
+          VALUES (?, ?, ?, NOW())
+        `, [ofertaRechazada.conversation_id, vendedor_id, `Hola! Gracias por tu oferta, pero ya fue aceptada otra propuesta.`]);
+
+        const [messageData] = await connection.query(`
+          SELECT m.*, u.nombre as emisor_nombre 
+          FROM chat_messages m
+          JOIN users u ON m.emisor_id = u.id
+          WHERE m.id = ?
+        `, [msg.insertId]);
+
+        const m = {
+          id: messageData[0].id,
+          conversation_id: messageData[0].conversation_id,
+          emisor_id: messageData[0].emisor_id,
+          emisor_nombre: messageData[0].emisor_nombre,
+          content: messageData[0].content,
+          created_at: messageData[0].created_at,
+        };
+
+        io.to(`user_${ofertaRechazada.emisor_id}`).emit('new_message', formatMessage(m));
+        io.to(`user_${vendedor_id}`).emit('new_message', formatMessage(m));
+        io.to(`user_${ofertaRechazada.emisor_id}`).emit('oferta:rechazada', { oferta_id: ofertaRechazada.id });
+      }
+    }
+
+    // 5. Crear mensaje para la oferta aceptada
     const [message] = await connection.query(`
       INSERT INTO chat_messages 
       (conversation_id, emisor_id, content, created_at)
@@ -531,11 +586,9 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
       created_at: messageData[0].created_at,
     };
 
-    // Enviar el nuevo mensaje a ambos usuarios
+    // Enviar mensajes al comprador y vendedor
     io.to(`user_${comprador_id}`).emit('new_message', formatMessage(m));
     io.to(`user_${vendedor_id}`).emit('new_message', formatMessage(m));
-
-    // Enviar evento de oferta aceptada a ambos
     io.to(`user_${comprador_id}`).emit('oferta:aceptada', { oferta_id });
     io.to(`user_${vendedor_id}`).emit('oferta:aceptada', { oferta_id });
 

@@ -54,6 +54,7 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     Route::post('publicaciones/getPublicacionesUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
     Route::get('publicaciones/getPublicacionesGuardadasProfile/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
     Route::get('publicaciones/getPublicacionesEnVenta/{page}', [PublicacionesController::class, 'getPublicacionesEnVenta']);
+    Route::get('publicaciones/getPublicacionesEnCompra/{page}', [PublicacionesController::class, 'getPublicacionesEnCompra']);
 
     // Para buscador
     Route::post('publicaciones/getPublicacionesFiltro/{page}', [PublicacionesController::class, 'getPublicacionesFiltro']);
@@ -62,6 +63,7 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     Route::get('publicaciones/getPublicacion/{user_id}/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
     Route::post('publicaciones/guardados/{publicacion_id}', [PublicacionesController::class, 'guardadosPublicacion']);
     Route::post('publicaciones/getPublicacionesCategoria/{page}', [PublicacionesController::class, 'getPublicacionesCategoria']);
+    Route::post('publicaciones/finalizarConCalificacion/{publicacion_id}', [PublicacionesController::class, 'finalizarConCalificacion']);
 
 // Imagenes de publicacion
 Route::get('publicaciones/getImageById/{publicacion_id}', [ImagePublicacionController::class, 'getPubImageById']);

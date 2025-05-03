@@ -12,6 +12,7 @@ use App\Models\EstadoRopa;
 use App\Models\Publicacion;
 use App\Models\RopaCategorias;
 use Illuminate\Http\Request;
+use App\Models\OpinionUser;
 use App\Models\ChatMensaje;
 use App\Models\PublicacionVenta;
 use App\Models\PublicacionOferta;
@@ -276,6 +277,51 @@ class PublicacionesController extends Controller
             'hasMore' => $hasMore
         ], 200);
     } 
+
+    public function getPublicacionesEnCompra($page) {
+        $limit = 5;
+        $user = auth()->user();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404); 
+        }
+
+        $offset = ($page - 1) * $limit;
+    
+        $publicacionesIds = PublicacionVenta::where("id_comprador", $user->id)
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+    
+        Carbon::setLocale('es');
+        
+        $publicaciones = $publicacionesIds->map(function ($id) use ($user) {
+            $publicacion = Publicacion::find($id->id_publicacion);
+
+            return [
+                'id' => $publicacion->id,
+                'id_creador' => $publicacion->id_user,
+                'nombre' => $publicacion->nombre,
+                'descripcion' => $publicacion->descripcion,
+                'precio' => $publicacion->precio,
+                'imagenUrl' => $publicacion->imagen,
+                'estado_publicacion' => $publicacion->estado_publicacion,
+            ];
+        });
+
+        $publicacionesTotales = PublicacionVenta::where("id_comprador", $user->id)->count();
+        $hasMore = ($publicacionesTotales > $offset + $limit);
+            
+        return response()->json([
+            'message' => 'Publicaciones obtenidas!',
+            'publicaciones' => $publicaciones,
+            'publicacionesTotales' => $publicacionesTotales,
+            'page' => $page,
+            'hasMore' => $hasMore
+        ], 200);
+    }
     
     public function getPublicacionesGuardadasProfile($user_id, $userProfile_id, $page) {
         $limit = 5;
@@ -316,7 +362,7 @@ class PublicacionesController extends Controller
             ];
         });
 
-        $publicacionesTotales = Publicacion::where("id_user", $userProfile_id)->count();
+        $publicacionesTotales = PublicacionGuardada::where("id_user", $userProfile_id)->count();
         $hasMore = ($publicacionesTotales > $offset + $limit);
             
         return response()->json([
@@ -882,4 +928,47 @@ class PublicacionesController extends Controller
             "publicacionesDestacadas" => $publicacionesDestacadas,
         ], 200);
     }      
+
+    public function finalizarConCalificacion(Request $request, $publicacion_id) {
+        $user = auth()->user();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no autenticado"
+            ], 404);
+        }
+    
+        $reseña = $request->input('reseña');
+        $rating = $request->input('rating');
+        $receptorId = $request->input('receptor_id');
+    
+        $publicacion = Publicacion::find($publicacion_id);
+        $publicacionVenta = PublicacionVenta::where("id_publicacion", $publicacion_id)->first();
+
+        $reseña = OpinionUser::create([
+            'id_comentador' => $user->id,
+            'id_comentado' => $receptorId,
+            'comentario' => $reseña,
+            'rate_general' => $rating["general"],
+            'rate_calidad_precio' => $rating["calidad_precio"],
+            'rate_atencion' => $rating["atencion"],
+            'rate_flexibilidad' => $rating["flexibilidad"],
+        ]);
+
+        $publicacion->estado_publicacion = 3;
+        $publicacionVenta->estado_venta = 2;
+    
+        $publicacion->save();
+        $publicacionVenta->save();
+        $reseña->save();
+
+        return response()->json([
+            "mensaje" => "Datos recibidos correctamente",
+            "reseña" => $reseña,
+            "rating" => $rating,
+            "receptor_id" => $receptorId,
+            "publicacion_id" => $publicacion_id
+        ], 200);
+    }
+    
 }

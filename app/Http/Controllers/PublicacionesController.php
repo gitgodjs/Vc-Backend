@@ -323,21 +323,19 @@ class PublicacionesController extends Controller
         ], 200);
     }
     
-    public function getPublicacionesGuardadasProfile($user_id, $userProfile_id, $page) {
+    public function getPublicacionesGuardadasProfile($page) {
         $limit = 5;
-        $userProfile = User::find($userProfile_id);
+        $user = auth()->user();
     
-        if (!$userProfile) {
+        if (!$user) {
             return response()->json([
                 "mensaje" => "Usuario no encontrado!"
             ], 404); 
-        }
-
-        $user = User::find($user_id);
+        };
 
         $offset = ($page - 1) * $limit;
     
-        $publicacionesIds = PublicacionGuardada::where("user_id", $userProfile_id)
+        $publicacionesIds = PublicacionGuardada::where("user_id", $user->id)
             ->skip($offset)
             ->take($limit)
             ->get();
@@ -362,7 +360,7 @@ class PublicacionesController extends Controller
             ];
         });
 
-        $publicacionesTotales = PublicacionGuardada::where("id_user", $userProfile_id)->count();
+        $publicacionesTotales = PublicacionGuardada::where("user_id", $user->id)->count();
         $hasMore = ($publicacionesTotales > $offset + $limit);
             
         return response()->json([
@@ -929,7 +927,7 @@ class PublicacionesController extends Controller
         ], 200);
     }      
 
-    public function finalizarConCalificacion(Request $request, $publicacion_id) {
+    public function finalizarConCalificacion(Request $request, $publicacion_id, $comprador = false) {
         $user = auth()->user();
     
         if (!$user) {
@@ -955,8 +953,13 @@ class PublicacionesController extends Controller
             'rate_flexibilidad' => $rating["flexibilidad"],
         ]);
 
-        $publicacion->estado_publicacion = 3;
-        $publicacionVenta->estado_venta = 2;
+        if($comprador == false) {
+            $publicacion->estado_publicacion = 3;
+            $publicacionVenta->estado_venta = 2;
+        } else {
+            $publicacionVenta->estado_venta = 3;
+        };
+        $publicacionVenta->updated_at = now();
     
         $publicacion->save();
         $publicacionVenta->save();

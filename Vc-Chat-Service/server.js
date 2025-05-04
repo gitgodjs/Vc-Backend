@@ -742,7 +742,7 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
     if (mensajeIds.length) {
       const [ofertas] = await db.query(`
         SELECT o.*, p.nombre as publicacion_nombre, p.descripcion, p.talle, p.tipo, 
-               p.ubicacion, p.precio as precio_publicacion,
+               p.ubicacion, p.precio as precio_publicacion, p.estado_publicacion,
                (SELECT img.url FROM images_publicaciones img WHERE img.id_publicacion = p.id ORDER BY img.created_at ASC LIMIT 1) as imagen_url
         FROM publicaciones_ofertas o
         JOIN publicaciones p ON p.id = o.publicacion_id
@@ -769,7 +769,8 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
             talle: oferta.talle,
             tipo: oferta.tipo,
             ubicacion: oferta.ubicacion,
-            imagen_url: oferta.imagen_url ? `http://localhost:8080/storage/${oferta.imagen_url}` : null
+            imagen_url: oferta.imagen_url ? `http://localhost:8080/storage/${oferta.imagen_url}` : null,
+            estado_id: oferta.estado_publicacion,
           }
         });
       });

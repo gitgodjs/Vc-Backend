@@ -1,9 +1,15 @@
 <?php
 namespace App\Http\Controllers;
-use Validator;
 
+use Validator;
+use Carbon\Carbon;
 use App\Models\User;
 use App\Models\UserPlan;
+use App\Models\Publicacion;
+use App\Models\PublicacionVenta;
+use App\Models\PublicacionOferta;
+use App\Models\ChatMensaje;
+
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
@@ -61,10 +67,44 @@ class AuthController extends Controller
     public function get_credentials_from_token()
     {
         $user = auth()->user();
-        if(!$user) {
-            return response()->json(["mensaje"=>"Error al obtener el token"], 400);
+        if (!$user) {
+            return response()->json(["mensaje" => "Error al obtener el token"], 400);
         }
-        return response()->json($user, 200);
+
+        $ventaParaReseñar = PublicacionVenta::where('id_comprador', $user->id)
+            ->where('estado_venta', 2)
+            ->orderBy('created_at', 'asc')
+            ->first();
+
         
+        $paraReseña = null;
+
+        Carbon::setLocale('es');
+        if ($ventaParaReseñar) {
+            $oferta = PublicacionOferta::find($ventaParaReseñar->oferta_id);
+            $conversation_id = ChatMensaje::find($oferta->mensaje_id)->conversation_id;
+
+            $publicacion = Publicacion::find($ventaParaReseñar->id_publicacion);
+            $vendedor = User::find($publicacion->id_user);
+
+            if ($publicacion) {
+                $paraReseña = [
+                    'id' => $publicacion->id,
+                    'nombre' => $publicacion->nombre,
+                    'descripcion' => $publicacion->descripcion,
+                    'precio' => $publicacion->precio,
+                    'imagen' => $publicacion->imagen,
+                    'fecha_venta' => $ventaParaReseñar->updated_at->diffForHumans(),
+                    'id_venta' => $ventaParaReseñar->id,
+                    'vendedor' => $vendedor,
+                    'conversation_id' => $conversation_id
+                ];
+            }
+        }
+
+        return response()->json([
+            "user" => $user,
+            "paraReseña" => $paraReseña
+        ], 200);
     }
 }

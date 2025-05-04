@@ -15,6 +15,7 @@ class Publicacion extends Model
 
     protected $fillable = [
         'id_user',
+        'id_estilo',
         'nombre',
         'descripcion',
         'estado_ropa',
@@ -72,4 +73,9 @@ class Publicacion extends Model
     {
         return $this->hasMany(UsuarioPublicacionGuardada::class, 'id_publicacion');
     }
+
+    public function estilo() {
+        return $this->belongsTo(RopaEstilo::class, 'id_estilo');
+    }
+    
 }

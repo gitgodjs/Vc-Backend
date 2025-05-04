@@ -28,8 +28,9 @@ Route::post('user/borrarCuenta/{user_id}', [UserController::class, 'borrarCuenta
 Route::get('user/crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
 Route::post('user/verificarCodigo/{correo}/{codigo}', [UserController::class, 'verficarCodigo']);
 Route::get('user/obtenerUserToken', [UserController::class, 'obtenerUserToken']);
-Route::post('user/actualizarTallas', [UserController::class, 'actualizarTallasUser']);
 Route::post('user/actualizarPerfil', [UserController::class, 'completarPerfil']);
+Route::post('user/actualizarTallas', [UserController::class, 'actualizarTallasUser']);
+Route::post('user/actualizarEstilos', [UserController::class, 'actualizarEstilosUser']);
 
 Route::get('user/obtenerReseñas/{correo_user}', [UserController::class, 'obtenerReseñas']);
 Route::get('user/obtenerReseñasBasicas/{correo_user}', [UserController::class, 'obtenerReseñasBasicas']);

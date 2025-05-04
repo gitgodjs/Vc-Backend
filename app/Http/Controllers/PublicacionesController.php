@@ -16,6 +16,7 @@ use App\Models\OpinionUser;
 use App\Models\ChatMensaje;
 use App\Models\PublicacionVenta;
 use App\Models\PublicacionOferta;
+use App\Models\RopaEstilo;
 use App\Models\ChatConversacion;
 use App\Models\ImagePublicacion;
 use App\Models\PublicacionGuardada;
@@ -32,9 +33,11 @@ class PublicacionesController extends Controller
         $prenda = Prendas::where("prenda", $request->categoria["name"])->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
+        $estilo = RopaEstilo::where("estilo", $request->estilo)->first();
         
         $publicacion = Publicacion::create([
             'id_user' => $user->id, 
+            'id_estilo' => $estilo->id,
             'nombre' => $request->titulo,
             'descripcion' => $request->descripcion,
             'ubicacion' => $request->ciudad,
@@ -173,7 +176,11 @@ class PublicacionesController extends Controller
         $prenda = Prendas::find($publicacion->prenda);
         $categoria = RopaCategorias::find($publicacion->categoria);
         $tipo = RopaTipo::find($publicacion->tipo);
-    
+
+        if($publicacion->id_estilo != null){
+            $estilo = RopaEstilo::find($publicacion->id_estilo);
+        };
+
         $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
             ->where('user_id', $user->id)
             ->exists();
@@ -190,6 +197,7 @@ class PublicacionesController extends Controller
             'imagenes' => $imagenesUrls,
             'estado_publicacion' => $publicacion->estado_publicacion,
             'estado_ropa' => $estado_ropa->estado,
+            'estilo_ropa' => $estilo->estilo ?? null,
             'categoria' => $categoria->category,
             'prenda' => $prenda->prenda,
             'talle' => $publicacion->talle,
@@ -609,7 +617,7 @@ class PublicacionesController extends Controller
         };
 
         $query = Publicacion::whereNull('deleted_at');
-        $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search']);
+        $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search', 'estilo']);
         
         foreach ($filters as $key => $value) {
             if (!empty($value)) {
@@ -623,21 +631,35 @@ class PublicacionesController extends Controller
                             ], 200);
                         }
                         $query->where('prenda', $prenda->id);
-                        break;
+                    break;
                         
                     case 'talla':
                         $query->where('talle', $value);
-                        break;
+                    break;
                         
                     case 'ciudad':
                         $query->where('ubicacion', $value);
-                        break;
+                    break;
                         
                     case 'categoria':
                         if($value != "Todos") {
                             $query->where('categoria', $value);
                         }
-                        break;
+                    break;
+
+                    case 'estilo':
+                        $estilo = RopaEstilo::where('estilo', $value)->first();
+                    
+                        if (!$estilo) {
+                            return response()->json([
+                                "mensaje" => "Estilo no encontrado",
+                                "publicaciones" => [],
+                                "publicacionesTotales" => 0
+                            ], 200);
+                        }
+                    
+                        $query->where('id_estilo', $estilo->id);
+                    break;
                         
                     case 'search':
                             $searchWords = explode(' ', $value);
@@ -647,7 +669,7 @@ class PublicacionesController extends Controller
                                         ->orWhere('descripcion', 'LIKE', '%'.trim($word).'%');
                                 }
                             });
-                        break;
+                    break;
                 };
             };
         };

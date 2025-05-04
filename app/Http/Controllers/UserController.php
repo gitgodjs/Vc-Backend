@@ -8,6 +8,7 @@ use App\Models\UsersTalla;
 use App\Models\UserCodigo;
 use App\Models\OpinionUser;
 use App\Models\Publicacion;
+use App\Models\UserEstilos;
 use App\Models\PublicacionVenta;
 
 use Illuminate\Http\Request;
@@ -173,17 +174,43 @@ class UserController extends Controller
         $userTallas = UsersTalla::updateOrCreate(
             ['user_id' => $user->id], 
             [
-                'remeras' => $request->talleRemera,
-                'pantalones' => $request->tallePantalon,
-                'shorts' => $request->talleShort,
-                'trajes' => $request->talleTraje,
-                'abrigos' => $request->talleAbrigo,
-                'vestidos' => $request->talleVestido,
-                'calzados' => $request->talleCalzado,
+                'remeras' => $request->talleRemera ?? null,
+                'pantalones' => $request->tallePantalon ?? null,
+                'shorts' => $request->talleShort ?? null,
+                'trajes' => $request->talleTraje ?? null,
+                'abrigos' => $request->talleAbrigo ?? null,
+                'vestidos' => $request->talleVestido ?? null,
+                'calzados' => $request->talleCalzado ?? null,
             ]
         );
 
-        return response()->json(['message' => 'Tallas guardadas correctamente', "req" => $request], 200);
+        return response()->json(['message' => 'Tallas guardadas correctamente'], 200);
+    }
+
+    public function actualizarEstilosUser(Request $request) 
+    {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
+        }
+
+        $estilos = $request->input('estilosSeleccionados', []);
+
+        if (count($estilos) < 1) {
+            return response()->json(['message' => 'Debes seleccionar al menos un estilo'], 422);
+        }
+
+        $userEstilos = UserEstilos::updateOrCreate(
+            ['id_user' => $user->id], 
+            [
+                'id_estilo_1' => $estilos[0] ?? null, 
+                'id_estilo_2' => $estilos[1] ?? null, 
+                'id_estilo_3' => $estilos[2] ?? null
+            ]
+        );
+
+        return response()->json(['message' => 'Estilos guardados correctamente'], 200);
     }
 
     public function obtenerTallasUser($correo) {
@@ -378,6 +405,8 @@ class UserController extends Controller
             ], 404);
         };
 
+        $estilos = UserEstilos::where("id_user", $user->id)->first();
+
         $publicaciones = Publicacion::where("id_user", $user->id)->count();
         $compras = PublicacionVenta::where("id_comprador", $user->id)
             ->where("estado_venta", "!=", 1)
@@ -388,6 +417,7 @@ class UserController extends Controller
 
         return response()->json([
             "mensaje" => "Informacion básica obtenidas con éxito",
+            "estilos" => $estilos,
             "publicaciones" => $publicaciones,
             "compras" => $compras,
             "ventas" => $ventas

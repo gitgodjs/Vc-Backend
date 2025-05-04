@@ -732,6 +732,7 @@ class PublicacionesController extends Controller
 
         // Paginadas
         $publicaciones = PublicacionVenta::where("id_vendedor", $user->id)
+            ->where("estado_venta", 1)
             ->skip($offset)
             ->take($limit)
             ->get();

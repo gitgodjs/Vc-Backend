@@ -23,8 +23,6 @@ Route::get('user/obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUs
 Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallasUser']);
 Route::post('user/getUsers/{page}', [UserController::class, 'getUsers']);
 Route::post('user/borrarCuenta/{user_id}', [UserController::class, 'borrarCuenta']);
-Route::get('user/obtenerReseñas/{correo_user}', [UserController::class, 'obtenerReseñas']);
-Route::get('user/obtenerReseñasBasicas/{correo_user}', [UserController::class, 'obtenerReseñasBasicas']);
 
 // Data para uno mismo (users token)
 Route::get('user/crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
@@ -33,6 +31,10 @@ Route::get('user/obtenerUserToken', [UserController::class, 'obtenerUserToken'])
 Route::post('user/actualizarTallas', [UserController::class, 'actualizarTallasUser']);
 Route::post('user/actualizarPerfil', [UserController::class, 'completarPerfil']);
 
+Route::get('user/obtenerReseñas/{correo_user}', [UserController::class, 'obtenerReseñas']);
+Route::get('user/obtenerReseñasBasicas/{correo_user}', [UserController::class, 'obtenerReseñasBasicas']);
+Route::get('user/obtenerInformacion/{correo_user}', [UserController::class, 'obtenerInformacion']);
+Route::get('user/obtenerDescDeVc/{correo_user}', [UserController::class, 'obtenerDescDeVc']);
 
 // Imagenes de usuarios
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);

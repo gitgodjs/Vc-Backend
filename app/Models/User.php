@@ -17,6 +17,7 @@ class User extends Authenticatable implements JWTSubject
     protected $fillable = [
         'correo',
         'password',
+        'verificado',
         'username',
         'nombre',
         'descripcion',
@@ -82,6 +83,27 @@ class User extends Authenticatable implements JWTSubject
             }])
             ->latest('updated_at'); 
     }
+    
+    public function ventas() {
+        return $this->hasMany(PublicacionVenta::class, 'id_vendedor');
+    }
+    
+    public function compras() {
+        return $this->hasMany(PublicacionVenta::class, 'id_comprador');
+    }
+    
+    public function opinionesRecibidas() {
+        return $this->hasMany(OpinionUser::class, 'id_comentado');
+    }
+    
+    public function guardados() {
+        return $this->hasMany(PublicacionGuardada::class, 'user_id');
+    }
+    
+    public function ofertas() {
+        return $this->hasManyThrough(PublicacionOferta::class, Publicacion::class, 'id_user', 'publicacion_id');
+    }
+    
 
     public function getJWTIdentifier()
     {

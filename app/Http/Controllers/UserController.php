@@ -7,6 +7,9 @@ use App\Models\User;
 use App\Models\UsersTalla;
 use App\Models\UserCodigo;
 use App\Models\OpinionUser;
+use App\Models\Publicacion;
+use App\Models\PublicacionVenta;
+
 use Illuminate\Http\Request;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
@@ -359,8 +362,103 @@ class UserController extends Controller
     
         return response()->json([
             "mensaje" => "Reseñas básicas obtenidas con éxito",
+            "user" => $user,
             "averageRating" => $total > 0 ? round($sumaGeneral / $total, 2) : 0,
             "totalReviews" => $total,
         ], 200);
     }    
+
+    public function obtenerInformacion($correo_user) {
+        $user = User::where("correo", $correo_user)->first();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado",
+                "code" => 404,
+            ], 404);
+        };
+
+        $publicaciones = Publicacion::where("id_user", $user->id)->count();
+        $compras = PublicacionVenta::where("id_comprador", $user->id)
+            ->where("estado_venta", "!=", 1)
+            ->count();
+        $ventas = PublicacionVenta::where("id_vendedor", $user->id)
+            ->where("estado_venta", "!=", 1)
+            ->count();
+
+        return response()->json([
+            "mensaje" => "Informacion básica obtenidas con éxito",
+            "publicaciones" => $publicaciones,
+            "compras" => $compras,
+            "ventas" => $ventas
+        ], 200);
+    }
+    
+    public function obtenerDescDeVc($correo_user) {
+        $user = User::where("correo", $correo_user)->first();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado",
+                "code" => 404,
+            ], 404);
+        }
+    
+        $ventas = $user->ventas->count();
+        $rol = $ventas > 5 ? "vendedor" : "comprador";
+    
+        // VERIFICACIÓN
+        if ($user->verificado) {
+            $confianza = "¡Verificado por VC! Lo aceptamos como $rol confiable en la comunidad.";
+        } else {
+            $confianza = "Todavía no fue verificado por VC, te recomendamos interactuar con precaución hasta conocerlo mejor.";
+        }
+    
+        // ACTIVIDAD COMO COMPRADOR
+        $ofertas = $user->ofertas->count();
+        $guardados = $user->guardados->count();
+        $actividad = ($ofertas + $guardados) > 5 ? "Se nota activo como comprador, haciendo ofertas y guardando publicaciones." : "Por ahora, parece que solo está explorando la app.";
+    
+        // OPINIONES
+        $opiniones = $user->opinionesRecibidas;
+        $cantidadOpiniones = $opiniones->count();
+    
+        if ($cantidadOpiniones < 3) {
+            $opinion = "Aún no recibió muchas reseñas, así que es difícil sacar conclusiones sobre su comportamiento.";
+            $comportamiento = "Con el tiempo, podremos saber mejor cómo es en las transacciones.";
+        } else {
+            $rateGeneral = $opiniones->avg('rate_general');
+            $rateAtencion = $opiniones->avg('rate_atencion') ?? 0;
+            $rateFlexibilidad = $opiniones->avg('rate_flexibilidad') ?? 0;
+    
+            if ($rateGeneral >= 4) {
+                $opinion = "La comunidad tiene muy buena opinión de él (★" . round($rateGeneral, 1) . ").";
+            } elseif ($rateGeneral >= 2.5) {
+                $opinion = "Las opiniones son mixtas (★" . round($rateGeneral, 1) . "), puede mejorar con más experiencias.";
+            } else {
+                $opinion = "Ha recibido algunas valoraciones bajas (★" . round($rateGeneral, 1) . ").";
+            }
+    
+            $comportamiento = "Como $rol, se destaca con una atención de " . round($rateAtencion, 1) . " y flexibilidad de " . round($rateFlexibilidad, 1) . ".";
+        }
+    
+        // ANTIGÜEDAD
+        $dias = now()->diffInDays($user->created_at);
+        if ($dias < 30) {
+            $antiguedad = "Es nuevo en VC, se unió hace apenas $dias días.";
+        } elseif ($dias < 180) {
+            $antiguedad = "Ya lleva un tiempo con nosotros, está aprendiendo a moverse por la app.";
+        } else {
+            $antiguedad = "Tiene bastante experiencia en VC, con más de $dias días en la comunidad.";
+        }
+    
+        // MENSAJE FINAL
+        $mensaje = "Este usuario es principalmente $rol. $confianza $actividad $opinion $comportamiento $antiguedad";
+    
+        return response()->json([
+            "mensaje" => $mensaje,
+            "code" => 200,
+        ]);
+    }
+    
 }

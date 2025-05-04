@@ -23,6 +23,8 @@ Route::get('user/obtenerUserCorreo/{correo}', [UserController::class, 'obtenerUs
 Route::get('user/obtenerTallas/{correo}', [UserController::class, 'obtenerTallasUser']);
 Route::post('user/getUsers/{page}', [UserController::class, 'getUsers']);
 Route::post('user/borrarCuenta/{user_id}', [UserController::class, 'borrarCuenta']);
+Route::get('user/obtenerReseñas/{correo_user}', [UserController::class, 'obtenerReseñas']);
+Route::get('user/obtenerReseñasBasicas/{correo_user}', [UserController::class, 'obtenerReseñasBasicas']);
 
 // Data para uno mismo (users token)
 Route::get('user/crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
@@ -55,7 +57,7 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     Route::get('publicaciones/getPublicacionesGuardadasProfile/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
     Route::get('publicaciones/getPublicacionesEnVenta/{page}', [PublicacionesController::class, 'getPublicacionesEnVenta']);
     Route::get('publicaciones/getPublicacionesEnCompra/{page}', [PublicacionesController::class, 'getPublicacionesEnCompra']);
-
+    
     // Para buscador
     Route::post('publicaciones/getPublicacionesFiltro/{page}', [PublicacionesController::class, 'getPublicacionesFiltro']);
     

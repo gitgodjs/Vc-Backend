@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use App\Models\User;
 use App\Models\UsersTalla;
 use App\Models\UserCodigo;
+use App\Models\OpinionUser;
 use Illuminate\Http\Request;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
@@ -260,4 +261,106 @@ class UserController extends Controller
             "Mensaje" => "Usuario eliminado con exito",
         ], 200);
     }
+
+    public function obtenerReseñas($correo_user) {
+        $user = User::where("correo", $correo_user)->first();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado",
+                "code" => 404,
+            ], 404);
+        };
+
+        Carbon::setLocale('es');
+        $baseUrl = env('APP_URL');
+
+        $reseñas = OpinionUser::where("id_comentado", $user->id)->get();
+    
+        $resultado = [];
+        $total = count($reseñas);
+        $sumaGeneral = 0;
+        $sumaCalidadPrecio = 0;
+        $sumaAtencion = 0;
+        $sumaFlexibilidad = 0;
+    
+        // Para desglose de calificaciones
+        $breakdown = [
+            "Excelente" => 0, 
+            "Muy bueno" => 0, 
+            "Regular" => 0,   
+            "Malo" => 0,      
+            "Muy malo" => 0,  
+        ];
+    
+        foreach ($reseñas as $reseña) {
+            $comentador = User::find($reseña->id_comentador);
+
+            if ($comentador->imagenProfile) {
+                $comentador->foto_perfil_url = $baseUrl . "/storage/" . $user->imagenProfile->url;
+            };
+            // Actualizamos promedios
+            $sumaGeneral += $reseña->rate_general;
+            $sumaCalidadPrecio += $reseña->rate_calidad_precio;
+            $sumaAtencion += $reseña->rate_atencion;
+            $sumaFlexibilidad += $reseña->rate_flexibilidad;
+    
+            // Clasificación
+            switch ($reseña->rate_general) {
+                case 5:
+                    $breakdown["Excelente"]++; break;
+                case 4:
+                    $breakdown["Muy bueno"]++; break;
+                case 3:
+                    $breakdown["Regular"]++; break;
+                case 2:
+                    $breakdown["Malo"]++; break;
+                case 1:
+                    $breakdown["Muy malo"]++; break;
+            }
+    
+            $resultado[] = [
+                'id' => $reseña->id,
+                'user' => $comentador->username,
+                'user_image' => $comentador->foto_perfil_url != null ? $comentador->foto_perfil_url : null, 
+                'date' => $reseña->created_at->diffForHumans(),
+                'comment' => $reseña->comentario,
+                'rating' => $reseña->rate_general,
+            ];
+        }
+    
+        return response()->json([
+            "mensaje" => "Reseñas obtenidas con éxito",
+            "reseñas" => $resultado,
+            "averageRating" => $total > 0 ? round($sumaGeneral / $total, 2) : 0,
+            "totalReviews" => $total,
+            "ratingsBreakdown" => $breakdown,
+            "promedios" => [
+                "calidad_precio" => $total > 0 ? round($sumaCalidadPrecio / $total * 20) : 0,
+                "atencion" => $total > 0 ? round($sumaAtencion / $total * 20) : 0,
+                "flexibilidad" => $total > 0 ? round($sumaFlexibilidad / $total * 20) : 0,
+            ],
+        ], 200);
+    }    
+
+    public function obtenerReseñasBasicas($correo_user) {
+        $user = User::where("correo", $correo_user)->first();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado",
+                "code" => 404,
+            ], 404);
+        }
+    
+        $reseñas = OpinionUser::where("id_comentado", $user->id)->get();
+        $total = $reseñas->count();
+        $sumaGeneral = $reseñas->sum('rate_general');
+    
+        return response()->json([
+            "mensaje" => "Reseñas básicas obtenidas con éxito",
+            "averageRating" => $total > 0 ? round($sumaGeneral / $total, 2) : 0,
+            "totalReviews" => $total,
+        ], 200);
+    }    
 }

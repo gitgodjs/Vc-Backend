@@ -415,56 +415,104 @@ class PublicacionesController extends Controller
         };
     }
 
-    public function getPublicacionesRecomendadas(Request $request, $user_id, $page) {
+    public function getPublicacionesRecomendadas(Request $request, $page) {
         $user = auth()->user();
     
-        if(!$user) {
+        if (!$user) {
             return response()->json([
                 'message' => 'Usuario no encontrado!',
             ], 404);
-        };
+        }
     
         $limit = 5;
         $offset = ($page - 1) * $limit;
     
-        $publicacionesTotales = Publicacion::where('id_user', '!=', $user_id)->count();
-
-        $publicaciones = Publicacion::where("id_user", '!=', $user_id)
+        // Obtener tallas del usuario
+        $tallas = UsersTalla::where('user_id', $user->id)->first();
+    
+        // Obtener estilos favoritos del usuario
+        $estilos = $user->estilos;
+        $estiloIds = collect([
+            $estilos->id_estilo_1 ?? null,
+            $estilos->id_estilo_2 ?? null,
+            $estilos->id_estilo_3 ?? null,
+        ])->filter()->toArray();
+    
+        // Obtener publicaciones ya guardadas por el usuario
+        $idsGuardados = PublicacionGuardada::where('user_id', $user->id)
+            ->pluck('id_publicacion')
+            ->toArray();
+    
+        // Buscar publicaciones recomendadas
+        $publicaciones = Publicacion::where('id_user', '!=', $user->id)
+            ->whereNotIn('id', $idsGuardados)
+            ->when($user->ubicacion, function ($query) use ($user) {
+                $query->where('ubicacion', $user->ubicacion);
+            })
+            ->when(!empty($estiloIds), function ($query) use ($estiloIds) {
+                $query->whereIn('id_estilo', $estiloIds);
+            })
+            ->when($tallas, function ($query) use ($tallas) {
+                $query->whereIn('talla', [
+                    $tallas->remeras,
+                    $tallas->pantalones,
+                    $tallas->shorts,
+                    $tallas->trajes,
+                    $tallas->vestidos,
+                    $tallas->abrigos,
+                    $tallas->calzados,
+                ]);
+            })
             ->skip($offset)
             ->take($limit)
             ->get();
     
+        // Total de publicaciones filtradas (para paginación)
+        $publicacionesTotales = Publicacion::where('id_user', '!=', $user->id)
+            ->whereNotIn('id', $idsGuardados)
+            ->when($user->ubicacion, function ($query) use ($user) {
+                $query->where('ubicacion', $user->ubicacion);
+            })
+            ->when(!empty($estiloIds), function ($query) use ($estiloIds) {
+                $query->whereIn('id_estilo', $estiloIds);
+            })
+            ->when($tallas, function ($query) use ($tallas) {
+                $query->whereIn('talla', [
+                    $tallas->remeras,
+                    $tallas->pantalones,
+                    $tallas->shorts,
+                    $tallas->trajes,
+                    $tallas->vestidos,
+                    $tallas->abrigos,
+                    $tallas->calzados,
+                ]);
+            })
+            ->count();
+    
         Carbon::setLocale('es');
-        
-        $publicaciones = $publicaciones->map(function ($publicacion) use ($user) {     
-            $guardada = false;
-            
-            if ($user) {
-                $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
-                    ->where('user_id', $user->id)
-                    ->exists();
-            };
-            
+    
+        $publicaciones = $publicaciones->map(function ($publicacion) {
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
                 'precio' => $publicacion->precio,
                 'ubicacion' => $publicacion->ubicacion,
                 'imagenUrl' => $publicacion->imagen,
-                'guardada' => $guardada,
+                'guardada' => false, // Ya se excluyeron, así que es falso por defecto
             ];
         });
     
         $hasMore = ($publicacionesTotales > $offset + $limit);
-            
+    
         return response()->json([
-            'message' => 'Publicaciones obtenidas!',
+            'message' => 'Publicaciones recomendadas obtenidas!',
             'publicaciones' => $publicaciones,
             'publicacionesTotales' => $publicacionesTotales,
             'page' => $page,
             'hasMore' => $hasMore
         ], 200);
     }
+       
 
     public function getPublicacionesGuardadasHome(Request $request, $user_id, $page) {
         $user = auth()->user();
@@ -512,45 +560,46 @@ class PublicacionesController extends Controller
     public function getPublicacionesExplorar(Request $request, $user_id, $page) {
         $user = auth()->user();
     
-        if(!$user) {
+        if (!$user) {
             return response()->json([
                 'message' => 'Usuario no encontrado!',
             ], 404);
-        };
+        }
     
         $limit = 10;
         $offset = ($page - 1) * $limit;
     
-        $publicacionesTotales = Publicacion::where('id_user', '!=', $user_id)->count();
-
-        $publicaciones = Publicacion::where("id_user", '!=', $user_id)
+        // Obtener IDs de publicaciones guardadas por el usuario
+        $idsGuardados = PublicacionGuardada::where('user_id', $user->id)
+            ->pluck('id_publicacion')
+            ->toArray();
+    
+        // Consultar publicaciones excluyendo las ya guardadas
+        $publicaciones = Publicacion::where('id_user', '!=', $user_id)
+            ->whereNotIn('id', $idsGuardados)
             ->skip($offset)
             ->take($limit)
             ->get();
     
+        $publicacionesTotales = Publicacion::where('id_user', '!=', $user_id)
+            ->whereNotIn('id', $idsGuardados)
+            ->count();
+    
         Carbon::setLocale('es');
-        
-        $publicaciones = $publicaciones->map(function ($publicacion) use ($user) {     
-            $guardada = false;
-            
-            if ($user) {
-                $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
-                    ->where('user_id', $user->id)
-                    ->exists();
-            };
-            
+    
+        $publicaciones = $publicaciones->map(function ($publicacion) {
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
                 'precio' => $publicacion->precio,
                 'ubicacion' => $publicacion->ubicacion,
                 'imagenUrl' => $publicacion->imagen,
-                'guardada' => $guardada,
+                'guardada' => false, // Ya se excluyeron, así que es falso por defecto
             ];
         });
     
         $hasMore = ($publicacionesTotales > $offset + $limit);
-            
+    
         return response()->json([
             'message' => 'Publicaciones obtenidas!',
             'publicaciones' => $publicaciones,
@@ -558,7 +607,7 @@ class PublicacionesController extends Controller
             'page' => $page,
             'hasMore' => $hasMore
         ], 200);
-    }
+    }    
     
     public function getPublicacionesCategoria(Request $request, $page) {
         $limit = 10; 

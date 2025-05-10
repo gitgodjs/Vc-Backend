@@ -51,10 +51,10 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
   // Especificas de publicacion
 
     // Para home
-    Route::post('publicaciones/getPublicacionesRecomendadas/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesRecomendadas']);
+    Route::post('publicaciones/getPublicacionesRecomendadas/{page}', [PublicacionesController::class, 'getPublicacionesRecomendadas']);
     Route::post('publicaciones/getPublicacionesGuardadasHome/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasHome']);
     Route::post('publicaciones/getPublicacionesExplorar/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
-    
+
     // Para perfil
     Route::post('publicaciones/getPublicacionesUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
     Route::get('publicaciones/getPublicacionesGuardadasProfile/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);

@@ -429,6 +429,15 @@ class PublicacionesController extends Controller
     
         // Obtener tallas del usuario
         $tallas = UsersTalla::where('user_id', $user->id)->first();
+        $tallesArray = $tallas ? array_filter([
+            $tallas->remeras,
+            $tallas->pantalones,
+            $tallas->shorts,
+            $tallas->trajes,
+            $tallas->vestidos,
+            $tallas->abrigos,
+            $tallas->calzados,
+        ]) : [];
     
         // Obtener estilos favoritos del usuario
         $estilos = $user->estilos;
@@ -438,56 +447,44 @@ class PublicacionesController extends Controller
             $estilos->id_estilo_3 ?? null,
         ])->filter()->toArray();
     
-        // Obtener publicaciones ya guardadas por el usuario
+        // Publicaciones guardadas
         $idsGuardados = PublicacionGuardada::where('user_id', $user->id)
             ->pluck('id_publicacion')
             ->toArray();
     
-        // Buscar publicaciones recomendadas
-        $publicaciones = Publicacion::where('id_user', '!=', $user->id)
+        // Consulta base con filtros condicionales
+        $queryBase = Publicacion::where('id_user', '!=', $user->id)
             ->whereNotIn('id', $idsGuardados)
-            ->when($user->ubicacion, function ($query) use ($user) {
+            ->when(!empty($user->ubicacion), function ($query) use ($user) {
                 $query->where('ubicacion', $user->ubicacion);
             })
             ->when(!empty($estiloIds), function ($query) use ($estiloIds) {
                 $query->whereIn('id_estilo', $estiloIds);
             })
-            ->when($tallas, function ($query) use ($tallas) {
-                $query->whereIn('talla', [
-                    $tallas->remeras,
-                    $tallas->pantalones,
-                    $tallas->shorts,
-                    $tallas->trajes,
-                    $tallas->vestidos,
-                    $tallas->abrigos,
-                    $tallas->calzados,
-                ]);
-            })
+            ->when(!empty($tallesArray), function ($query) use ($tallesArray) {
+                $query->whereIn('talle', $tallesArray);
+            });
+    
+        // Obtener publicaciones con filtros
+        $publicaciones = (clone $queryBase)
             ->skip($offset)
             ->take($limit)
             ->get();
     
-        // Total de publicaciones filtradas (para paginación)
-        $publicacionesTotales = Publicacion::where('id_user', '!=', $user->id)
-            ->whereNotIn('id', $idsGuardados)
-            ->when($user->ubicacion, function ($query) use ($user) {
-                $query->where('ubicacion', $user->ubicacion);
-            })
-            ->when(!empty($estiloIds), function ($query) use ($estiloIds) {
-                $query->whereIn('id_estilo', $estiloIds);
-            })
-            ->when($tallas, function ($query) use ($tallas) {
-                $query->whereIn('talla', [
-                    $tallas->remeras,
-                    $tallas->pantalones,
-                    $tallas->shorts,
-                    $tallas->trajes,
-                    $tallas->vestidos,
-                    $tallas->abrigos,
-                    $tallas->calzados,
-                ]);
-            })
-            ->count();
+        // Si no se encontró nada, buscar sin filtros adicionales
+        if ($publicaciones->isEmpty()) {
+            $publicaciones = Publicacion::where('id_user', '!=', $user->id)
+                ->whereNotIn('id', $idsGuardados)
+                ->skip($offset)
+                ->take($limit)
+                ->get();
+    
+            $publicacionesTotales = Publicacion::where('id_user', '!=', $user->id)
+                ->whereNotIn('id', $idsGuardados)
+                ->count();
+        } else {
+            $publicacionesTotales = $queryBase->count();
+        }
     
         Carbon::setLocale('es');
     
@@ -495,10 +492,11 @@ class PublicacionesController extends Controller
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
+                'nombre' => $publicacion->nombre,
                 'precio' => $publicacion->precio,
                 'ubicacion' => $publicacion->ubicacion,
                 'imagenUrl' => $publicacion->imagen,
-                'guardada' => false, // Ya se excluyeron, así que es falso por defecto
+                'guardada' => false,
             ];
         });
     
@@ -511,8 +509,7 @@ class PublicacionesController extends Controller
             'page' => $page,
             'hasMore' => $hasMore
         ], 200);
-    }
-       
+    }       
 
     public function getPublicacionesGuardadasHome(Request $request, $user_id, $page) {
         $user = auth()->user();
@@ -539,6 +536,7 @@ class PublicacionesController extends Controller
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
+                'nombre' => $publicacion->nombre,
                 'precio' => $publicacion->precio,
                 'ubicacion' => $publicacion->ubicacion,
                 'imagenUrl' => $publicacion->imagen,
@@ -591,6 +589,7 @@ class PublicacionesController extends Controller
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
+                'nombre' => $publicacion->nombre,
                 'precio' => $publicacion->precio,
                 'ubicacion' => $publicacion->ubicacion,
                 'imagenUrl' => $publicacion->imagen,
@@ -639,6 +638,7 @@ class PublicacionesController extends Controller
                     'id' => $publicacion->id,
                     'id_creador' => $publicacion->id_user,
                     'categoria' => $categoria->category,
+                    'nombre' => $publicacion->nombre,
                     'precio' => $publicacion->precio,
                     'ubicacion' => $publicacion->ubicacion,
                     'imagenUrl' => $publicacion->imagen,

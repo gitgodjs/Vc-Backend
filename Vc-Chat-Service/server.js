@@ -106,20 +106,18 @@ restApp.get('/api/conversations/:user_id', async (req, res) => {
           SELECT COUNT(*) 
           FROM chat_messages unread
           WHERE unread.conversation_id = c.id
-          AND unread.emisor_id = u.id  /* Mensajes del otro usuario */
-          AND unread.read_at IS NULL   /* No leídos */
+            AND unread.emisor_id != ?     /* Enviados por el otro usuario */
+            AND unread.read_at IS NULL
         ) as unread_count
     
       FROM chat_conversations c
     
-      /* Obtener al otro usuario */
       JOIN users u ON 
         CASE 
           WHEN c.emisor_id = ? THEN c.receptor_id 
           ELSE c.emisor_id 
         END = u.id
     
-      /* Imagen del otro usuario (última por fecha) */
       LEFT JOIN (
         SELECT i1.*
         FROM images_users i1
@@ -130,7 +128,6 @@ restApp.get('/api/conversations/:user_id', async (req, res) => {
         ) i2 ON i1.id_usuario = i2.id_usuario AND i1.created_at = i2.max_date
       ) img ON img.id_usuario = u.id
     
-      /* Último mensaje de cada conversación */
       LEFT JOIN (
         SELECT m1.*
         FROM chat_messages m1
@@ -141,16 +138,15 @@ restApp.get('/api/conversations/:user_id', async (req, res) => {
         ) m2 ON m1.conversation_id = m2.conversation_id AND m1.created_at = m2.max_date
       ) last_msg ON last_msg.conversation_id = c.id
     
-      /* Info del emisor del último mensaje */
       LEFT JOIN users msg_sender ON last_msg.emisor_id = msg_sender.id
     
-      /* Conversaciones donde el usuario participa */
       WHERE 
         (c.emisor_id = ? OR c.receptor_id = ?)
         AND c.deleted_at IS NULL
     
       ORDER BY last_msg.created_at DESC
-    `, [userId, userId, userId]);
+    `, [userId, userId, userId, userId]); 
+    
 
     // Función para formatear la fecha
     const formatTimeAgo = (dateString) => {
@@ -564,8 +560,8 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
     // 5. Crear mensaje para la oferta aceptada
     const [message] = await connection.query(`
       INSERT INTO chat_messages 
-      (conversation_id, emisor_id, content, created_at)
-      VALUES (?, ?, ?, NOW())
+      (conversation_id, emisor_id, content, read_at, created_at)
+      VALUES (?, ?, ?, null, NOW())
     `, [oferta[0].conversation_id, vendedor_id, `Hola! He aceptado tu oferta de $${precio}. Puedes consultarme por cualquier cosa! Gracias.`]);
 
     const [messageData] = await connection.query(`

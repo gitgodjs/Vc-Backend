@@ -118,7 +118,6 @@ class ImagePublicacionController extends Controller
 
     public function getImagesById(Request $request) {
         $publicaciones = collect($request->publicaciones); 
-        
         $baseUrl = env('APP_URL');
         
         $publicacionesTransformadas = $publicaciones->map(function ($pub) use ($baseUrl) {

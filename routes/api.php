@@ -52,7 +52,7 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
 
     // Para home
     Route::post('publicaciones/getPublicacionesRecomendadas/{page}', [PublicacionesController::class, 'getPublicacionesRecomendadas']);
-    Route::post('publicaciones/getPublicacionesGuardadasHome/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasHome']);
+    Route::post('publicaciones/getPublicacionesGuardadas/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadas']);
     Route::post('publicaciones/getPublicacionesExplorar/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
 
     // Para perfil
@@ -67,7 +67,6 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     // Para cada publicacion
     Route::get('publicaciones/getPublicacion/{user_id}/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
     Route::post('publicaciones/guardados/{publicacion_id}', [PublicacionesController::class, 'guardadosPublicacion']);
-    Route::post('publicaciones/getPublicacionesCategoria/{page}', [PublicacionesController::class, 'getPublicacionesCategoria']);
     Route::post('publicaciones/finalizarConCalificacion/{publicacion_id}/{comprador?}', [PublicacionesController::class, 'finalizarConCalificacion']);
 
 // Imagenes de publicacion

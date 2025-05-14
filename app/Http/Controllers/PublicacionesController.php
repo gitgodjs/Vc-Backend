@@ -16,6 +16,8 @@ use App\Models\OpinionUser;
 use App\Models\ChatMensaje;
 use App\Models\PublicacionVenta;
 use App\Models\PublicacionOferta;
+use App\Models\NotificacionTipo;
+use App\Models\UserNotificacion;
 use App\Models\RopaEstilo;
 use App\Models\ChatConversacion;
 use App\Models\ImagePublicacion;
@@ -29,12 +31,18 @@ class PublicacionesController extends Controller
     public function crearPublicacion(Request $request)
     {
         $user = auth()->user();
+        
+        // Obtener los detalles de la prenda, estado, tipo, etc.
         $categoria = RopaCategorias::where("category", $request->categoria["category"])->first();
         $prenda = Prendas::where("prenda", $request->categoria["name"])->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
         $estilo = RopaEstilo::where("estilo", $request->estilo)->first();
         
+        // Contar las publicaciones del usuario
+        $publicacionesCount = Publicacion::where("id_user", $user->id)->count();
+    
+        // Crear la nueva publicación
         $publicacion = Publicacion::create([
             'id_user' => $user->id, 
             'id_estilo' => $estilo->id,
@@ -49,11 +57,30 @@ class PublicacionesController extends Controller
             'prenda' => $prenda->id, 
             'estado_publicacion' => 1,
         ]);
-
-        return response()->json([
-            "publicacion" => $publicacion,
+    
+        // Obtener la plantilla de la notificación correspondiente
+        $tipoNotificacion = NotificacionTipo::where('clave', $publicacionesCount > 0 ? 'nueva_publicacion' : 'primera_publicacion')->first();
+    
+        // Reemplazar las variables de la plantilla con datos reales
+        $mensaje = str_replace('{{prenda}}', $request->titulo, $tipoNotificacion->mensaje);
+    
+        // Crear la notificación para el usuario
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => $tipoNotificacion->id,
+            'mensaje' => $mensaje,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => "/publicaciones/{$publicacion->id}",
         ]);
-    }
+    
+        // Respuesta con los datos de la publicación
+        return response()->json([
+            "mensaje" => "Publicación subida con éxito",
+            "publicacion" => $publicacion,
+        ], 200);
+    }    
 
     public function eliminarPublicacion(Request $request, $publicacion_id) {
         $publicacion = Publicacion::find($publicacion_id);
@@ -1010,6 +1037,7 @@ class PublicacionesController extends Controller
         $reseña = $request->input('reseña');
         $rating = $request->input('rating');
         $receptorId = $request->input('receptor_id');
+        $receptor = User::find($receptorId);
     
         $publicacion = Publicacion::find($publicacion_id);
         $publicacionVenta = PublicacionVenta::where("id_publicacion", $publicacion_id)->first();
@@ -1035,6 +1063,46 @@ class PublicacionesController extends Controller
         $publicacion->save();
         $publicacionVenta->save();
         $reseña->save();
+
+        // ✅ Notificación para quien CALIFICA (ID 10)
+        $tipoEnvio = NotificacionTipo::find(10);
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => 10,
+            'mensaje' => str_replace(
+                ['{{prenda}}', '{{usuario}}'],
+                [
+                    '<span style="color:#864a00;">' . e($publicacion->nombre) . '</span>',
+                    '<span style="color:#864a00;">' . e($receptor->nombre) . '</span>'
+                ],
+                $tipoEnvio->mensaje
+            ),
+            'leido' => false,
+            'fecha_creacion' => now(),
+            'ruta_destino' => $tipoEnvio->ruta_destino,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
+
+        // ✅ Notificación para quien RECIBE la calificación (ID 11)
+        $tipoRecibe = NotificacionTipo::find(11);
+        UserNotificacion::create([
+            'user_id' => $receptorId,
+            'notificacion_tipo_id' => 11,
+            'mensaje' => str_replace(
+                ['{{prenda}}', '{{usuario}}'],
+                [
+                    '<span style="color:#864a00;">' . e($publicacion->nombre) . '</span>',
+                    '<span style="color:#864a00;">' . e($user->nombre) . '</span>'
+                ],
+                $tipoRecibe->mensaje
+            ),
+            'leido' => false,
+            'fecha_creacion' => now(),
+            'ruta_destino' => $tipoRecibe->ruta_destino,
+            'created_at' => now(),
+            'updated_at' => now(),
+        ]);
 
         return response()->json([
             "mensaje" => "Datos recibidos correctamente",

@@ -438,6 +438,20 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
       publicacion: publicacion.nombre
     });
 
+    // Enviar notificación de oferta realizada
+    await db.query(`
+      INSERT INTO users_notificaciones 
+      (user_id, notificacion_tipo_id, mensaje, ruta_destino, created_at) 
+      VALUES (?, 4, 'Ofertaste <span style="color:#864a00;">\$${precio}</span> por <span style="color:#864a00;">${publicacion.nombre}</span> de ${publicacion.creador.nombre}. Puedes ver el chat aquí.', '/chat/${conversation_id}', NOW())
+    `, [emisor_id]);
+    
+    // Enviar notificación al receptor
+    await db.query(`
+      INSERT INTO users_notificaciones 
+      (user_id, notificacion_tipo_id, mensaje, ruta_destino, created_at) 
+      VALUES (?, 5, '${ofertador.nombre} te ofreció <span style="color:#864a00;">\$${precio}</span> por tu prenda <span style="color:#864a00;">${publicacion.nombre}</span>. Puedes ver el chat aquí.', '/chat/${conversation_id}', NOW())
+    `, [receptor_id]);
+
     res.json({
       success: true,
       conversation_id,
@@ -588,6 +602,24 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
     io.to(`user_${comprador_id}`).emit('oferta:aceptada', { oferta_id });
     io.to(`user_${vendedor_id}`).emit('oferta:aceptada', { oferta_id });
 
+
+    const [[comprador]] = await connection.query(`SELECT nombre FROM users WHERE id = ?`, [comprador_id]);
+    const [[vendedor]] = await connection.query(`SELECT nombre FROM users WHERE id = ?`, [vendedor_id]);
+    const [[publicacion]] = await connection.query(`SELECT nombre FROM publicaciones WHERE id = ?`, [publicacion_id]);
+    const conversation_id = oferta[0].conversation_id;
+
+    await db.query(`
+      INSERT INTO users_notificaciones 
+      (user_id, notificacion_tipo_id, mensaje, ruta_destino, created_at) 
+      VALUES (?, 6, 'Aceptaste la oferta de <span style="color:#864a00;">${comprador.nombre}</span> por <span style="color:#864a00;">\$${precio}</span> de <span style="color:#864a00;">${publicacion.nombre}</span>. ¡Ahora a coordinar el envío!', '/chat/${conversation_id}', NOW())
+    `, [vendedor_id]);
+    
+    await db.query(`
+      INSERT INTO users_notificaciones 
+      (user_id, notificacion_tipo_id, mensaje, ruta_destino, created_at) 
+      VALUES (?, 8, '<span style="color:#864a00;">${vendedor.nombre}</span> aceptó tu oferta por <span style="color:#864a00;">\$${precio}</span> de <span style="color:#864a00;">${publicacion.nombre}</span>. Revisa los detalles y coordina la entrega lo antes posible.', '/chat/${conversation_id}', NOW())
+    `, [comprador_id]);    
+
     res.json({ 
       success: true, 
       message: 'Oferta aceptada y venta registrada',
@@ -645,6 +677,26 @@ restApp.post('/api/chat/oferta/rechazar', async (req, res) => {
       JOIN users u ON m.emisor_id = u.id
       WHERE m.id = ?
     `, [message.insertId]);
+
+    // Obtener nombres para las notificaciones
+    const [[comprador]] = await connection.query(`SELECT nombre FROM users WHERE id = ?`, [comprador_id]);
+    const [[vendedor]] = await connection.query(`SELECT nombre FROM users WHERE id = ?`, [vendedor_id]);
+    const [[publicacion]] = await connection.query(`SELECT nombre FROM publicaciones WHERE id = ?`, [publicacion_id]);
+    const conversation_id = oferta[0].conversation_id;
+
+    // Notificación al vendedor (rechazaste una oferta)
+    await db.query(`
+      INSERT INTO users_notificaciones 
+      (user_id, notificacion_tipo_id, mensaje, ruta_destino, created_at) 
+      VALUES (?, 7, 'Rechazaste la oferta que te hizo <span style="color:#864a00;">${comprador.nombre}</span> por <span style="color:#864a00;">${publicacion.nombre}</span>. El artículo sigue disponible.', '/chat/${conversation_id}', NOW())
+    `, [vendedor_id]);
+
+    // Notificación al comprador (tu oferta fue rechazada)
+    await db.query(`
+      INSERT INTO users_notificaciones 
+      (user_id, notificacion_tipo_id, mensaje, ruta_destino, created_at) 
+      VALUES (?, 9, '<span style="color:#864a00;">${vendedor.nombre}</span> rechazó tu oferta por <span style="color:#864a00;">${publicacion.nombre}</span>. Puedes seguir buscando nuevas prendas en el catálogo.', '/chat/${conversation_id}', NOW())
+    `, [comprador_id]);
 
     await connection.commit();
 

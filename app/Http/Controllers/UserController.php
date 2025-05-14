@@ -10,6 +10,8 @@ use App\Models\OpinionUser;
 use App\Models\Publicacion;
 use App\Models\UserEstilos;
 use App\Models\PublicacionVenta;
+use App\Models\NotificacionTipo;
+use App\Models\UserNotificacion;
 
 use Illuminate\Http\Request;
 use App\Mail\EmailCodeConfirmation;
@@ -491,4 +493,48 @@ class UserController extends Controller
         ]);
     }
     
+    public function obtenerNotificaciones() {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        };
+
+        $notificacionesNoLeidas = UserNotificacion::where("user_id", $user->id)
+            ->where("leido", 0)
+            ->orderBy('created_at', 'desc') // Ordenar de las más nuevas a las más antiguas
+            ->get();
+
+        // Obtener las notificaciones leídas, ordenadas de las más recientes a las más antiguas
+        $notificacionesLeidas = UserNotificacion::where("user_id", $user->id)
+            ->where("leido", 1)
+            ->orderBy('created_at', 'desc') // Ordenar de las más recientes a las más antiguas
+            ->get();
+
+        Carbon::setLocale('es');
+        // Para las notificaciones leídas
+        foreach($notificacionesLeidas as $notificacionLeida) {
+            $tipoDeNotificacion = NotificacionTipo::find($notificacionLeida->notificacion_tipo_id);
+            $notificacionLeida->notificacion_tipo_id = $tipoDeNotificacion;
+            $notificacionLeida->fecha_relativa = $notificacionLeida->updated_at->diffForHumans();
+        };
+
+        // Para las notificaciones no leídas
+        foreach($notificacionesNoLeidas as $notificacionNoLeida) {
+            $notificacionNoLeida->leido = 1;
+            $notificacionNoLeida->save();
+            $tipoDeNotificacion = NotificacionTipo::find($notificacionNoLeida->notificacion_tipo_id);
+            $notificacionNoLeida->notificacion_tipo_id = $tipoDeNotificacion;
+            $notificacionNoLeida->fecha_relativa = $notificacionNoLeida->created_at->diffForHumans();
+        };
+
+        
+        return response()->json([
+            "mensaje" => "Notificaciones obtenidas con exito",
+            "notifiaciones_leidas" => $notificacionesLeidas,
+            "notifiaciones_noLeidas" => $notificacionesNoLeidas, 
+        ], 200);
+    }
 }

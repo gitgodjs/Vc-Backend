@@ -37,6 +37,9 @@ Route::get('user/obtenerReseñasBasicas/{correo_user}', [UserController::class, 
 Route::get('user/obtenerInformacion/{correo_user}', [UserController::class, 'obtenerInformacion']);
 Route::get('user/obtenerDescDeVc/{correo_user}', [UserController::class, 'obtenerDescDeVc']);
 
+// Data para notificaciones
+Route::get('notificaciones/obtener', [UserController::class, 'obtenerNotificaciones']);
+
 // Imagenes de usuarios
 Route::post('userImage/updateImage/{correo}/{isProfile?}', [ImageUserController::class, 'updateImage']);
 Route::get('userImage/getImages/{id}/{portada}', [ImageUserController::class, 'getImages'] );

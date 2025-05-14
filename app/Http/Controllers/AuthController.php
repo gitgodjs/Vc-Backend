@@ -10,6 +10,9 @@ use App\Models\PublicacionVenta;
 use App\Models\PublicacionOferta;
 use App\Models\ChatMensaje;
 
+use App\Models\NotificacionTipo;
+use App\Models\UserNotificacion;
+
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
@@ -28,12 +31,22 @@ class AuthController extends Controller
         ]); 
 
         UserPlan::create([
-            'user_id' => $user->id,
+            'user_id' => $user->id, 
             'plan_id' => 1,
             'publicaciones_disponibles' => 5,
             'impulsos_disponibles' => 0,
             'fecha_compra' => now(),
             'fecha_vencimiento' => now()->addMonths(12),
+        ]);
+
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => 1,
+            'mensaje' => 'Te damos la bienvenida a <span style="color:#864a00;">Vintage Clothes</span>. Personaliza tu perfil y empieza a explorar.',
+            'fecha_creacion' => now(),
+            'ruta_destino' => `/perfil/${$user->correo}`,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
 
         $credentials = $request->only('correo', 'password');

@@ -16,6 +16,9 @@ use App\Models\UserNotificacion;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
+            
+use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
@@ -120,4 +123,30 @@ class AuthController extends Controller
             "paraReseña" => $paraReseña
         ], 200);
     }
+
+    public function redirect($provider)
+    {
+        return Socialite::driver($provider)->stateless()->redirect();
+    }
+
+    public function callback($provider)
+    {
+        $socialUser = Socialite::driver($provider)->stateless()->user();
+
+        $user = User::firstOrCreate(
+            ['correo' => $socialUser->getEmail()],
+            [
+                'password' => bcrypt(Str::random(40)),
+                'nombre' => $socialUser->getName(),
+                'username' => Str::slug($socialUser->getName()),
+                'email_verified_at' => now(),
+                'red_social' => $provider,
+            ]
+        );
+
+        $token = JWTAuth::fromUser($user);
+
+        return redirect("http://localhost:3000/?token=$token");
+    }
+    
 }

@@ -11,7 +11,7 @@
         "laravel/sanctum": "^3.2",
         "laravel/socialite": "^5.20",
         "laravel/tinker": "^2.8",
-        "mercadopago/dx-php": "^3.4",
+        "mercadopago/dx-php": "3.3.0",
         "tymon/jwt-auth": "^2.1"
     },
     "require-dev": {

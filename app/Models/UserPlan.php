@@ -13,7 +13,6 @@ class UserPlan extends Model
         'plan_id',
         'publicaciones_disponibles',
         'impulsos_disponibles',
-        'prueba_hecha',
         'fecha_compra',
         'fecha_vencimiento',
     ];

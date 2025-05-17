@@ -100,3 +100,4 @@ Route::get('estadisticas/getEstadisticas/{periodo}', [PublicacionesController::c
 
 // Comprar plan
 Route::post('mercadopago/create', [MercadoPagoController::class, 'createPreference']);
+Route::post('mercadopago/confirm', [MercadoPagoController::class, 'confirmTransaction']);

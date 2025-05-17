@@ -9,9 +9,12 @@ use Illuminate\Http\Request;
 use MercadoPago\MercadoPagoConfig;
 use MercadoPago\Exceptions\MPApiException;
 use MercadoPago\Client\Preference\PreferenceClient;
+use MercadoPago\Client\Payment\PaymentClient;
 
 use App\Models\User;
 use App\Models\Plan;
+use App\Models\UserPlan;
+use App\Models\MercadoPagoComprobante;
 
 class MercadoPagoController extends Controller
 {
@@ -44,19 +47,15 @@ class MercadoPagoController extends Controller
                 ],
                 "metadata" => [
                     "user_id" => $user->id,
-                    "user_email" => $user->correo,
                     "plan_id" => $plan->id,
-                    "plan_meses" => $plan->meses_plan,
                 ],
                 "back_urls" => [
-                    "success" => "http://localhost:3000/mercadopago/success",
-                    "failure" => "http://localhost:3000/mercadopago/failure",
-                    "pending" => "http://localhost:3000/mercadopago/pending",
+                    "success" => "https://f080-186-158-144-41.ngrok-free.app/mercadopago/success",
+                    "failure" => "https://f080-186-158-144-41.ngrok-free.app/mercadopago/failure",
+                    "pending" => "https://f080-186-158-144-41.ngrok-free.app/mercadopago/pending",
                 ],
                 "auto_return" => "approved"
             ]);
-
-            // Bacjs:urls para https con ngrok (investigar)
         
             return response()->json(['init_point' => $preference->init_point]);
         
@@ -74,6 +73,75 @@ class MercadoPagoController extends Controller
                 'details' => $response->getContent()
             ], 500);
         }
-        
+    }
+
+    public function confirmTransaction(Request $request)
+    {
+        try {
+            // Configurar el token de acceso
+            MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
+    
+            // Crear una instancia del cliente de pagos
+            $client = new PaymentClient();
+    
+            // Consultar el pago por su ID
+            $payment = $client->get($request->input('payment_id'));
+    
+            // Acceder a los metadatos
+            $userId = $payment->metadata->user_id;
+            $planId = $payment->metadata->plan_id;
+    
+            // Guardar el comprobante en la base de datos
+            MercadoPagoComprobante::create([
+                'user_id' => $userId,
+                'plan_id' => $planId,
+                'collection_id' => $request->input('collection_id'),
+                'collection_status' => $request->input('collection_status'),
+                'payment_id' => $request->input('payment_id'),
+                'status' => $request->input('status'),
+                'external_reference' => $request->input('external_reference'),
+                'payment_type' => $request->input('payment_type'),
+                'merchant_order_id' => $request->input('merchant_order_id'),
+                'preference_id' => $request->input('preference_id'),
+                'site_id' => $request->input('site_id'),
+                'processing_mode' => $request->input('processing_mode'),
+                'merchant_account_id' => $request->input('merchant_account_id'),
+                'created_at' => now(),
+            ]);
+    
+            $plan = Plan::findOrFail($planId);
+
+            $fechaCompra = now();
+            $fechaVencimiento = now()->addMonth(); 
+
+            $userPlan = UserPlan::where('user_id', $userId)->first();
+
+            if ($userPlan) {
+                $userPlan->update([
+                    'plan_id' => $planId,
+                    'publicaciones_disponibles' => $plan->publicaciones_mes,
+                    'impulsos_disponibles' => $plan->impulsos_mes,
+                    'fecha_compra' => $fechaCompra,
+                    'fecha_vencimiento' => $fechaVencimiento,
+                    'updated_at' => now(),
+                ]);
+            } else {
+                UserPlan::create([
+                    'user_id' => $userId,
+                    'plan_id' => $planId,
+                    'publicaciones_disponibles' => $plan->publicaciones_mes,
+                    'impulsos_disponibles' => $plan->impulsos_mes,
+                    'fecha_compra' => $fechaCompra,
+                    'fecha_vencimiento' => $fechaVencimiento,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            };
+
+            return response()->json(['message' => 'Comprobante registrado correctamente', "plan" => $plan], 200);
+        } catch (\Exception $e) {
+            logger()->error('Error al guardar comprobante MP', ['error' => $e->getMessage()]);
+            return response()->json(['error' => 'Error al guardar el comprobante'], 500);
+        }
     }
 }

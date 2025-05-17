@@ -9,6 +9,7 @@ use App\Http\Controllers\PublicacionesController;
 use App\Http\Controllers\ImagePublicacionController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\PlanesController;
+use App\Http\Controllers\MercadoPagoController;
 
 // Principal usuarios
 Route::post('register', [AuthController::class, 'register']);
@@ -96,3 +97,6 @@ Route::get('planes/obtenerPlanActual', [PlanesController::class, 'obtenerPlanAct
 
 // Obtener estadisticas
 Route::get('estadisticas/getEstadisticas/{periodo}', [PublicacionesController::class, 'getEstadisticas']);
+
+// Comprar plan
+Route::post('mercadopago/create', [MercadoPagoController::class, 'createPreference']);

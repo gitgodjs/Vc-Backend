@@ -102,4 +102,39 @@ class PlanesController extends Controller
             "puede_publicar" => ($publicacionesActivas < $planActual->publicaciones_disponibles)
         ]);
     }
+
+    public function cancelarPlan(Request $request) {
+        $user = auth()->user();
+        if(!$user) {
+            return response()->json([
+                "message" => "Error! El usuario no existe!",
+                "code" => 404
+            ], 404);
+        }
+    
+        $planActual = UserPlan::where('user_id', $user->id)->first();
+        
+        if($planActual->plan_id === 1) {
+            return response()->json([
+                "plan" => $planActual->plan_id,
+                "message" => "Este plan no se pude cancelar porque es el de base",
+                "code" => 402
+            ], 402);
+        };
+
+        $vencimientoPlan = now()->addYear();
+        $planActual->update([
+            'plan_id' => 1,
+            'publicaciones_disponibles' => 5,
+            'impulsos_disponibles' => 0,
+            'fecha_compra' => now(),
+            'fecha_vencimiento' => $vencimientoPlan,
+            'updated_at' => now(),
+        ]);
+
+        return response()->json([
+            "message" => "Plan cancelado con exito",
+            "code" => 200
+        ], 200);
+    }
 }

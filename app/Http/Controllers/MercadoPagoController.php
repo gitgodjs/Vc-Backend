@@ -50,9 +50,9 @@ class MercadoPagoController extends Controller
                     "plan_id" => $plan->id,
                 ],
                 "back_urls" => [
-                    "success" => "https://f080-186-158-144-41.ngrok-free.app/mercadopago/success",
-                    "failure" => "https://f080-186-158-144-41.ngrok-free.app/mercadopago/failure",
-                    "pending" => "https://f080-186-158-144-41.ngrok-free.app/mercadopago/pending",
+                    "success" => "https://1246-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/success",
+                    "failure" => "https://1246-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/failure",
+                    "pending" => "https://1246-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/pending",
                 ],
                 "auto_return" => "approved"
             ]);

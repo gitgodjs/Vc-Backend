@@ -104,7 +104,6 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasManyThrough(PublicacionOferta::class, Publicacion::class, 'id_user', 'publicacion_id');
     }
     
-
     public function getJWTIdentifier()
     {
         return $this->getKey(); 

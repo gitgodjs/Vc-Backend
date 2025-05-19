@@ -29,7 +29,7 @@ class ChatMensaje extends Model
     // 🔗 Relación con la conversación
     public function conversation()
     {
-        return $this->belongsTo(ChatConversation::class, 'conversation_id');
+        return $this->belongsTo(ChatConversacion::class, 'conversation_id');
     }
 
     // 🔗 Relación con el emisor (usuario)
@@ -42,5 +42,10 @@ class ChatMensaje extends Model
     public function publicacion()
     {
         return $this->belongsTo(Publicacion::class, 'publicacion_id');
+    }
+
+        public function usuario()
+    {
+        return $this->belongsTo(User::class, 'user_id');
     }
 }

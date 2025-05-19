@@ -180,6 +180,7 @@ class PublicacionesController extends Controller
     
         $yaFueOfertada = false;
         $mensajeOferta = null;
+        $mejoresOfertas = null;
 
         if (!$itsMe) {
             $conversacion = ChatConversacion::where(function ($query) use ($user, $publicacion) {
@@ -208,7 +209,40 @@ class PublicacionesController extends Controller
     
             $publicacion->visitas += 1;
             $publicacion->save();
+        } else {
+            // Traer las 10 mejores ofertas basadas en precio y rate_general del ofertante
+            $mejoresOfertas = PublicacionOferta::where('publicacion_id', $publicacion->id)
+                ->whereNull('deleted_at')
+                ->whereHas('mensaje.emisor') // Asegura que haya usuario
+                ->with([
+                    'mensaje:id,conversation_id,emisor_id', // Cargamos solo chat_id y user_id del mensaje
+                    'mensaje.emisor:id,username',
+                    'mensaje.emisor.imagenProfile:id,id_usuario,url'  // Si querés cargar el usuario del mensaje también
+                ])
+                ->get()
+                ->map(function ($oferta) {
+                    $user = $oferta->mensaje->emisor;
+
+                    $promedioRate = $user->opiniones()->avg('rate_general') ?? 0;
+                
+                    return [
+                        'id' => $oferta->id,
+                        'user' => [
+                            'id' => $user->id,
+                            'username' => $user->username,
+                            'foto_perfil_url' => $user->getFotoPerfilUrl(), 
+                        ],
+                        'precio' => $oferta->precio,
+                        'conversacion_id' => $oferta->mensaje->conversation->id ?? null,
+                        'promedio_rate' => $promedioRate,
+                    ];
+                })
+                ->sortByDesc('precio')
+                ->sortByDesc('promedio_rate')
+                ->take(10)
+                ->values(); // Para reindexar
         };
+        
     
         $imagenesUrls = [];
         foreach ($publicacion->imagenes as $imagen) {
@@ -261,6 +295,7 @@ class PublicacionesController extends Controller
             "itsMe" => $itsMe,
             "ofertaExistente" => $yaFueOfertada,
             "mensajeOferta" => $mensajeOferta,
+            "mejoresOfertas" => $mejoresOfertas,
         ], 200);
     }    
 

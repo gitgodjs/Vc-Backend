@@ -27,6 +27,7 @@ class Publicacion extends Model
         'tipo',
         'ubicacion',
         'visitas',
+        'fecha_impulso',
     ];
 
     public function user()

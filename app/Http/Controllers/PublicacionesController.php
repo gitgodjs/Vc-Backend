@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use App\Models\User;
 use App\Models\Prendas;
 use App\Models\RopaTipo;
+use App\Models\UserPlan;
 use App\Models\UsersTalla;
 use App\Models\UserCodigo;
 use App\Models\EstadoRopa;
@@ -249,6 +250,7 @@ class PublicacionesController extends Controller
             'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(),
             'fecha_original' => $publicacion->created_at,
             'images_array' => $publicacion->imagenes,
+            'fecha_impulso' => $publicacion->fecha_impulso,
             'guardada' => $guardada,
         ];
     
@@ -532,6 +534,7 @@ class PublicacionesController extends Controller
         if ($publicaciones->isEmpty()) {
             $publicaciones = Publicacion::where('id_user', '!=', $user->id)
                 ->whereNotIn('id', $idsGuardados)
+                ->orderByDesc('fecha_impulso')
                 ->skip($offset)
                 ->take($limit)
                 ->get();
@@ -571,6 +574,62 @@ class PublicacionesController extends Controller
             'hasMore' => $hasMore
         ], 200);
     }       
+        
+    public function getPublicacionesEnVenta($page) {
+        $limit = 5;
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404); 
+        }
+
+        $offset = ($page - 1) * $limit;
+
+        // Paginadas
+        $publicaciones = PublicacionVenta::where("id_vendedor", $user->id)
+            ->where("estado_venta", 1)
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+
+        Carbon::setLocale('es');
+
+        $publicacionesFormateadas = $publicaciones->map(function ($publicacionVenta) use ($user) {  
+            $compradorPublicacion = User::find($publicacionVenta->id_comprador);
+            $publicacion = Publicacion::find($publicacionVenta->id_publicacion);
+            if($publicacion->imagen != null) {$publicacion->imagenUrl = $publicacion->imagen;}
+
+            $oferta = PublicacionOferta::find($publicacionVenta->oferta_id);
+            if (!$oferta) return null;
+
+            $mensajeInicial = ChatMensaje::find($oferta->mensaje_id);
+            if (!$mensajeInicial) return null;
+
+            return [
+                'id' => $publicacionVenta->id,
+                'id_creador_publicacion' => $publicacion->id_user,
+                'precio' => $publicacionVenta->precio,
+                'imagenUrl' => $publicacion->imagenUrl,
+                'estado_venta' => $publicacionVenta->estado_venta,
+                'publicacionOriginal' => $publicacion,
+                'compradorPublicacion' => $compradorPublicacion,
+                'conversacion_id' => $mensajeInicial->conversation_id,
+            ];
+        })->filter(); 
+
+        $publicacionesTotales = Publicacion::where("id_user", $user->id)->count();
+        $hasMore = ($publicacionesTotales > $offset + $limit);
+
+        return response()->json([
+            'message' => 'Publicaciones obtenidas!',
+            'publicaciones' => $publicacionesFormateadas->values(), 
+            'publicacionesTotales' => $publicacionesTotales,
+            'page' => $page,
+            'hasMore' => $hasMore,
+        ], 200);
+    }
 
     public function getPublicacionesGuardadas(Request $request, $user_id, $page) {
         $user = auth()->user();
@@ -638,6 +697,7 @@ class PublicacionesController extends Controller
     
         $publicaciones = Publicacion::where('id_user', '!=', $user_id)
             ->whereNotIn('id', $idsGuardados)
+            ->orderByDesc('fecha_impulso')
             ->skip($offset)
             ->take($limit)
             ->get();
@@ -680,7 +740,7 @@ class PublicacionesController extends Controller
             return response()->json(["mensaje" => "Usuario no encontrado"], 404);
         }
     
-        $query = Publicacion::whereNull('deleted_at');
+        $query = Publicacion::whereNull('deleted_at')->orderByDesc('fecha_impulso');
         $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search', 'estilo']);
     
         foreach ($filters as $key => $value) {
@@ -769,64 +829,31 @@ class PublicacionesController extends Controller
             "publicacionesTotales" => $publicacionesTotales
         ], 200);
     }
-        
-    public function getPublicacionesEnVenta($page) {
-        $limit = 5;
+
+    /////////////////////////////////
+
+    public function impulsarPublicacion(Request $request, $publicacion_id) {
         $user = auth()->user();
 
         if (!$user) {
             return response()->json([
-                "mensaje" => "Usuario no encontrado!"
-            ], 404); 
-        }
+                "Mensaje" => "Este usuario no existe"
+            ], 404);
+        };
 
-        $offset = ($page - 1) * $limit;
+        $publicacion = Publicacion::find($publicacion_id);
+        $userPlan = UserPlan::where("user_id", $user->id)->first();
+        $publicacion->update([
+            'fecha_impulso' => now()
+        ]);
 
-        // Paginadas
-        $publicaciones = PublicacionVenta::where("id_vendedor", $user->id)
-            ->where("estado_venta", 1)
-            ->skip($offset)
-            ->take($limit)
-            ->get();
-
-        Carbon::setLocale('es');
-
-        $publicacionesFormateadas = $publicaciones->map(function ($publicacionVenta) use ($user) {  
-            $compradorPublicacion = User::find($publicacionVenta->id_comprador);
-            $publicacion = Publicacion::find($publicacionVenta->id_publicacion);
-            if($publicacion->imagen != null) {$publicacion->imagenUrl = $publicacion->imagen;}
-
-            $oferta = PublicacionOferta::find($publicacionVenta->oferta_id);
-            if (!$oferta) return null;
-
-            $mensajeInicial = ChatMensaje::find($oferta->mensaje_id);
-            if (!$mensajeInicial) return null;
-
-            return [
-                'id' => $publicacionVenta->id,
-                'id_creador_publicacion' => $publicacion->id_user,
-                'precio' => $publicacionVenta->precio,
-                'imagenUrl' => $publicacion->imagenUrl,
-                'estado_venta' => $publicacionVenta->estado_venta,
-                'publicacionOriginal' => $publicacion,
-                'compradorPublicacion' => $compradorPublicacion,
-                'conversacion_id' => $mensajeInicial->conversation_id,
-            ];
-        })->filter(); 
-
-        $publicacionesTotales = Publicacion::where("id_user", $user->id)->count();
-        $hasMore = ($publicacionesTotales > $offset + $limit);
-
+        $userPlan->update([
+            'impulsos_disponibles' => $userPlan->impulsos_disponibles-1
+        ]);
         return response()->json([
-            'message' => 'Publicaciones obtenidas!',
-            'publicaciones' => $publicacionesFormateadas->values(), 
-            'publicacionesTotales' => $publicacionesTotales,
-            'page' => $page,
-            'hasMore' => $hasMore,
+            "Mensaje" => "Publicacion impulsada con exito!"
         ], 200);
     }
-
-    /////////////////////////////////
 
     public function eliminarOferta(Request $request) {
         $user = auth()->user();

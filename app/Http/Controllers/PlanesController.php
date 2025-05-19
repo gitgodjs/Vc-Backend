@@ -50,15 +50,16 @@ class PlanesController extends Controller
         }
 
         $planes = Plan::get();
+        $userPlan = UserPlan::where('user_id', $user->id)->first();
 
         return response()->json([
             "Mensaje" => "Planes",
             "code" => 200,
             "planes" => $planes,
             "planActual" => $planActual,
+            "userPlan" =>  $userPlan,
         ], 200);
     }
-
 
     public function obtenerPlanActual() 
     {

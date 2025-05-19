@@ -91,6 +91,10 @@ Route::get('chat/obtenerConversation/{conversation_id}', [ChatController::class,
 // Ofertas a publicaciones
 Route::post('publicaciones/eliminarOferta', [PublicacionesController::class, 'eliminarOferta']);
 
+// Impulsar publicaciones
+Route::post('publicaciones/impulsar/{publicacion_id}', [PublicacionesController::class, 'impulsarPublicacion']);
+
+
 // Obtener planes o plan
 Route::get('planes/obtenerPlanes', [PlanesController::class, 'obtenerPlanes']);
 Route::get('planes/obtenerPlanActual', [PlanesController::class, 'obtenerPlanActual']);

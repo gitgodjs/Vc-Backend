@@ -300,7 +300,7 @@ class PublicacionesController extends Controller
     }    
 
     public function getPublicacionesUser($user_id, $userProfile_id, $page) {
-        $limit = 5;
+        $limit = 20;
         $userProfile = User::find($userProfile_id);
     
         if (!$userProfile) {
@@ -367,7 +367,7 @@ class PublicacionesController extends Controller
     } 
 
     public function getPublicacionesEnCompra($page) {
-        $limit = 5;
+        $limit = 20;
         $user = auth()->user();
     
         if (!$user) {
@@ -418,7 +418,7 @@ class PublicacionesController extends Controller
     }
     
     public function getPublicacionesGuardadasProfile($page) {
-        $limit = 5;
+        $limit = 20;
         $user = auth()->user();
     
         if (!$user) {
@@ -518,7 +518,7 @@ class PublicacionesController extends Controller
             ], 404);
         }
     
-        $limit = 10;
+        $limit = 20;
         $offset = ($page - 1) * $limit;
     
         // Obtener tallas del usuario
@@ -611,7 +611,7 @@ class PublicacionesController extends Controller
     }       
         
     public function getPublicacionesEnVenta($page) {
-        $limit = 5;
+        $limit = 20;
         $user = auth()->user();
 
         if (!$user) {
@@ -675,7 +675,7 @@ class PublicacionesController extends Controller
             ], 404);
         };
     
-        $limit = 5;
+        $limit = 20;
         $offset = ($page - 1) * $limit;
     
         $publicacionesTotales = PublicacionGuardada::where("user_id", $user_id)->count();
@@ -723,7 +723,7 @@ class PublicacionesController extends Controller
             ], 404);
         }
     
-        $limit = 10;
+        $limit = 20;
         $offset = ($page - 1) * $limit;
     
         $idsGuardados = PublicacionGuardada::where('user_id', $user->id)
@@ -775,7 +775,7 @@ class PublicacionesController extends Controller
             return response()->json(["mensaje" => "Usuario no encontrado"], 404);
         }
     
-        $query = Publicacion::whereNull('deleted_at')->orderByDesc('fecha_impulso');
+        $query = Publicacion::whereNull('deleted_at')->where('id_user', '!=', $user->id)->orderByDesc('fecha_impulso');
         $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search', 'estilo']);
     
         foreach ($filters as $key => $value) {

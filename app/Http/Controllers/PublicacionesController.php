@@ -521,7 +521,7 @@ class PublicacionesController extends Controller
         $limit = 20;
         $offset = ($page - 1) * $limit;
     
-        // Obtener tallas del usuario
+        // Talles y estilos del usuario
         $tallas = UsersTalla::where('user_id', $user->id)->first();
         $tallesArray = $tallas ? array_filter([
             $tallas->remeras,
@@ -533,7 +533,6 @@ class PublicacionesController extends Controller
             $tallas->calzados,
         ]) : [];
     
-        // Obtener estilos favoritos del usuario
         $estilos = $user->estilos;
         $estiloIds = collect([
             $estilos->id_estilo_1 ?? null,
@@ -541,49 +540,124 @@ class PublicacionesController extends Controller
             $estilos->id_estilo_3 ?? null,
         ])->filter()->toArray();
     
-        // Publicaciones guardadas
         $idsGuardados = PublicacionGuardada::where('user_id', $user->id)
             ->pluck('id_publicacion')
             ->toArray();
     
-        // Consulta base con filtros condicionales
-        $queryBase = Publicacion::where('id_user', '!=', $user->id)
-            ->whereNotIn('id', $idsGuardados)
-            ->when(!empty($user->ubicacion), function ($query) use ($user) {
-                $query->where('ubicacion', $user->ubicacion);
-            })
-            ->when(!empty($estiloIds), function ($query) use ($estiloIds) {
-                $query->whereIn('id_estilo', $estiloIds);
-            })
-            ->when(!empty($tallesArray), function ($query) use ($tallesArray) {
-                $query->whereIn('talle', $tallesArray);
-            });
+        // 🔄 Obtener publicaciones por criterios separados
+        $byEstilo = collect();
+        $byTalle = collect();
+        $byUbicacion = collect();
     
-        // Obtener publicaciones con filtros
-        $publicaciones = (clone $queryBase)
+        if (!empty($estiloIds)) {
+            $byEstilo = Publicacion::where('id_user', '!=', $user->id)
+                ->whereNotIn('id', $idsGuardados)
+                ->whereIn('id_estilo', $estiloIds)
+                ->where('estado_publicacion', 1) // 👈 AÑADIDO
+                ->limit(50)
+                ->get();
+        }
+        
+        if (!empty($tallesArray)) {
+            $byTalle = Publicacion::where('id_user', '!=', $user->id)
+                ->whereNotIn('id', $idsGuardados)
+                ->whereIn('talle', $tallesArray)
+                ->where('estado_publicacion', 1) // 👈 AÑADIDO
+                ->limit(50)
+                ->get();
+        }
+        
+        if (!empty($user->ubicacion)) {
+            $byUbicacion = Publicacion::where('id_user', '!=', $user->id)
+                ->whereNotIn('id', $idsGuardados)
+                ->where('ubicacion', $user->ubicacion)
+                ->where('estado_publicacion', 1) // 👈 AÑADIDO
+                ->limit(50)
+                ->get();
+        }        
+    
+        $publicaciones = $byEstilo->merge($byTalle)->merge($byUbicacion)
+            ->unique('id') // evitar duplicados
+            ->map(function ($publicacion) use ($user, $estiloIds, $tallesArray) {
+                return [
+                    'id' => $publicacion->id,
+                    'id_creador' => $publicacion->id_user,
+                    'nombre' => $publicacion->nombre,
+                    'precio' => $publicacion->precio,
+                    'ubicacion' => $publicacion->ubicacion,
+                    'imagenUrl' => $publicacion->imagen,
+                    'guardada' => PublicacionGuardada::where('id_publicacion', $publicacion->id)
+                        ->where('user_id', $user->id)
+                        ->exists(),
+                    'es_estilo_guardado' => in_array($publicacion->id_estilo, $estiloIds),
+                    'es_talla_guardada' => in_array($publicacion->talle, $tallesArray),
+                    'es_ubicacion' => $publicacion->ubicacion == $user->ubicacion,
+                ];
+            })
+            ->sortByDesc(function ($pub) {
+                // Peso personalizado: priorizar por estilo > talle > ubicación
+                $prioridad = 0;
+                if ($pub['es_estilo_guardado']) $prioridad += 3;
+                if ($pub['es_talla_guardada']) $prioridad += 2;
+                if ($pub['es_ubicacion']) $prioridad += 1;
+                return $prioridad;
+            })
+            ->shuffle() // mezclar para que no se vean iguales
+            ->values()
+            ->slice($offset, $limit); // aplicar paginación
+    
+        $publicaciones = $this->imageControll($publicaciones);
+    
+        return response()->json([
+            'message' => 'Publicaciones recomendadas obtenidas!',
+            'publicaciones' => $publicaciones,
+            'publicacionesTotales' => $publicaciones->count(),
+            'page' => $page,
+            'hasMore' => $publicaciones->count() === $limit
+        ], 200);
+    }
+    
+    public function getPublicacionesExplorar(Request $request, $user_id, $page) {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado!',
+            ], 404);
+        }
+
+        $limit = 20;
+        $offset = ($page - 1) * $limit;
+
+        // Obtener los IDs de las publicaciones guardadas
+        $idsGuardados = PublicacionGuardada::where('user_id', $user->id)
+            ->pluck('id_publicacion')
+            ->toArray();
+
+        // Obtener los estilos de las publicaciones guardadas por el usuario
+        $estilosGuardados = Publicacion::whereIn('id', $idsGuardados)
+            ->pluck('id_estilo')
+            ->unique()
+            ->toArray();
+
+        // Obtener las publicaciones que no están guardadas ni son del mismo usuario
+        $publicaciones = Publicacion::where('id_user', '!=', $user_id)
+            ->whereNotIn('id', $idsGuardados)
+            ->where('estado_publicacion', 1) // 👈 AÑADIDO
+            ->orderByDesc('fecha_impulso')
             ->skip($offset)
             ->take($limit)
             ->get();
-    
-        // Si no se encontró nada, buscar sin filtros adicionales
-        if ($publicaciones->isEmpty()) {
-            $publicaciones = Publicacion::where('id_user', '!=', $user->id)
-                ->whereNotIn('id', $idsGuardados)
-                ->orderByDesc('fecha_impulso')
-                ->skip($offset)
-                ->take($limit)
-                ->get();
-    
-            $publicacionesTotales = Publicacion::where('id_user', '!=', $user->id)
-                ->whereNotIn('id', $idsGuardados)
-                ->count();
-        } else {
-            $publicacionesTotales = $queryBase->count();
-        }
-    
+
+        $publicacionesTotales = Publicacion::where('id_user', '!=', $user_id)
+            ->whereNotIn('id', $idsGuardados)
+            ->where('estado_publicacion', 1) // 👈 AÑADIDO
+            ->count();
+
         Carbon::setLocale('es');
-    
-        $publicaciones = $publicaciones->map(function ($publicacion) {
+
+        // Mapear las publicaciones y añadir campos adicionales
+        $publicaciones = $publicaciones->map(function ($publicacion) use ($user, $estilosGuardados) {
             return [
                 'id' => $publicacion->id,
                 'id_creador' => $publicacion->id_user,
@@ -591,25 +665,33 @@ class PublicacionesController extends Controller
                 'precio' => $publicacion->precio,
                 'ubicacion' => $publicacion->ubicacion,
                 'imagenUrl' => $publicacion->imagen,
-                'guardada' => false,
+                'guardada' => in_array($publicacion->id, $user->guardados->pluck('id_publicacion')->toArray()), // Si la publicación está guardada
+                'es_estilo_guardado' => in_array($publicacion->id_estilo, $estilosGuardados), // Verifica si tiene el mismo estilo que las publicaciones guardadas
             ];
-        })->filter()->values();
-        
-        if ($publicaciones->isNotEmpty()) {
-            $publicaciones = $this->imageControll($publicaciones);
-        };
+        });
 
+        // Mezclar las publicaciones aleatoriamente, pero priorizando las de los mismos estilos guardados
+        $publicaciones = $publicaciones->sortByDesc(function ($pub) {
+            return $pub['es_estilo_guardado'] ? 1 : 0; // Asegura que las publicaciones de estilo guardado tengan prioridad
+        });
+
+        // Ahora mezclamos el contenido para evitar que siempre se muestre en el mismo orden
+        $publicaciones = $publicaciones->shuffle(); // Mezclar las publicaciones
+
+        $publicaciones = $this->imageControll($publicaciones);
+
+        // Verificar si hay más publicaciones
         $hasMore = ($publicacionesTotales > $offset + $limit);
-    
+
         return response()->json([
-            'message' => 'Publicaciones recomendadas obtenidas!',
+            'message' => 'Publicaciones obtenidas!',
             'publicaciones' => $publicaciones,
             'publicacionesTotales' => $publicacionesTotales,
             'page' => $page,
             'hasMore' => $hasMore
         ], 200);
-    }       
-        
+    }
+
     public function getPublicacionesEnVenta($page) {
         $limit = 20;
         $user = auth()->user();
@@ -712,61 +794,7 @@ class PublicacionesController extends Controller
             'page' => $page,
             'hasMore' => $hasMore
         ], 200);
-    }
-
-    public function getPublicacionesExplorar(Request $request, $user_id, $page) {
-        $user = auth()->user();
-    
-        if (!$user) {
-            return response()->json([
-                'message' => 'Usuario no encontrado!',
-            ], 404);
-        }
-    
-        $limit = 20;
-        $offset = ($page - 1) * $limit;
-    
-        $idsGuardados = PublicacionGuardada::where('user_id', $user->id)
-            ->pluck('id_publicacion')
-            ->toArray();
-    
-        $publicaciones = Publicacion::where('id_user', '!=', $user_id)
-            ->whereNotIn('id', $idsGuardados)
-            ->orderByDesc('fecha_impulso')
-            ->skip($offset)
-            ->take($limit)
-            ->get();
-    
-        $publicacionesTotales = Publicacion::where('id_user', '!=', $user_id)
-            ->whereNotIn('id', $idsGuardados)
-            ->count();
-    
-        Carbon::setLocale('es');
-    
-        $publicaciones = $publicaciones->map(function ($publicacion) {
-            return [
-                'id' => $publicacion->id,
-                'id_creador' => $publicacion->id_user,
-                'nombre' => $publicacion->nombre,
-                'precio' => $publicacion->precio,
-                'ubicacion' => $publicacion->ubicacion,
-                'imagenUrl' => $publicacion->imagen,
-                'guardada' => false,
-            ];
-        });
-    
-        $publicaciones = $this->imageControll($publicaciones);
-    
-        $hasMore = ($publicacionesTotales > $offset + $limit);
-    
-        return response()->json([
-            'message' => 'Publicaciones obtenidas!',
-            'publicaciones' => $publicaciones,
-            'publicacionesTotales' => $publicacionesTotales,
-            'page' => $page,
-            'hasMore' => $hasMore
-        ], 200);
-    }   
+    }    
 
     public function getPublicacionesFiltro(Request $request) {
         $user = auth()->user();
@@ -775,7 +803,11 @@ class PublicacionesController extends Controller
             return response()->json(["mensaje" => "Usuario no encontrado"], 404);
         }
     
-        $query = Publicacion::whereNull('deleted_at')->where('id_user', '!=', $user->id)->orderByDesc('fecha_impulso');
+        $query = Publicacion::whereNull('deleted_at')
+            ->where('id_user', '!=', $user->id)
+            ->where('estado_publicacion', 1) 
+            ->orderByDesc('fecha_impulso');
+            
         $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search', 'estilo']);
     
         foreach ($filters as $key => $value) {
@@ -852,6 +884,19 @@ class PublicacionesController extends Controller
                     ->exists(),
             ];
         })->filter()->values();
+
+        if ($request->filled('search')) {
+            // Obtenemos IDs de usuarios con plan_id = 4
+            $usuariosPlanDestacado = UserPlan::where('plan_id', 4)
+                ->pluck('user_id')
+                ->toArray();
+        
+            // Reordenamos: los que tienen plan 4 primero
+            $publicacionesMapped = $publicacionesMapped->sortBy(function ($pub) use ($usuariosPlanDestacado) {
+                // Si el creador de la publicación tiene plan 4, le damos un valor más bajo (-1) para ponerlo al principio
+                return in_array($pub['id_creador'], $usuariosPlanDestacado) ? -1 : 1;
+            })->values(); // Importante: resetear índices con ->values()
+        }        
     
         if ($publicacionesMapped->isNotEmpty()) {
             $publicacionesMapped = $this->imageControll($publicacionesMapped);

@@ -329,7 +329,7 @@ class UserController extends Controller
             $comentador = User::find($reseña->id_comentador);
 
             if ($comentador->imagenProfile) {
-                $comentador->foto_perfil_url = $baseUrl . "/storage/" . $user->imagenProfile->url;
+                $comentador->foto_perfil_url = $baseUrl . "/storage/" . $comentador->imagenProfile->url;
             };
             // Actualizamos promedios
             $sumaGeneral += $reseña->rate_general;

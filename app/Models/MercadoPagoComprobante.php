@@ -16,6 +16,7 @@ class MercadoPagoComprobante extends Model
     protected $fillable = [
         'user_id',
         'plan_id',
+        'monto',
         'collection_id',
         'collection_status',
         'payment_id',

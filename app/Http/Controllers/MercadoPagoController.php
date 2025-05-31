@@ -48,11 +48,12 @@ class MercadoPagoController extends Controller
                 "metadata" => [
                     "user_id" => $user->id,
                     "plan_id" => $plan->id,
+                    "monto" => (float) $plan->precio,
                 ],
                 "back_urls" => [
-                    "success" => "https://1246-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/success",
-                    "failure" => "https://1246-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/failure",
-                    "pending" => "https://1246-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/pending",
+                    "success" => "https://31d0-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/success",
+                    "failure" => "https://14ca-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/failure",
+                    "pending" => "https://14ca-2803-9800-98cb-6e37-75a9-886-c26-f8d2.ngrok-free.app/mercadopago/pending",
                 ],
                 "auto_return" => "approved"
             ]);
@@ -90,11 +91,13 @@ class MercadoPagoController extends Controller
             // Acceder a los metadatos
             $userId = $payment->metadata->user_id;
             $planId = $payment->metadata->plan_id;
+            $monto = $payment->metadata->pago;
     
             // Guardar el comprobante en la base de datos
             MercadoPagoComprobante::create([
                 'user_id' => $userId,
                 'plan_id' => $planId,
+                'monto' => $monto,
                 'collection_id' => $request->input('collection_id'),
                 'collection_status' => $request->input('collection_status'),
                 'payment_id' => $request->input('payment_id'),

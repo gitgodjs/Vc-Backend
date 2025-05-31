@@ -10,6 +10,7 @@ use App\Http\Controllers\ImagePublicacionController;
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\PlanesController;
 use App\Http\Controllers\MercadoPagoController;
+use App\Http\Controllers\CmsController;
 
 // Principal usuarios
 Route::post('register', [AuthController::class, 'register']);
@@ -106,3 +107,9 @@ Route::get('estadisticas/getEstadisticas/{periodo}', [PublicacionesController::c
 // Comprar plan
 Route::post('mercadopago/create', [MercadoPagoController::class, 'createPreference']);
 Route::post('mercadopago/confirm', [MercadoPagoController::class, 'confirmTransaction']);
+
+// Cms
+Route::get('cms/getGeneralData', [CmsController::class, 'getGeneralData']);
+Route::get('cms/getNuevosUsuarios', [CmsController::class, 'getNuevosUsuarios']);
+Route::get('cms/getGanancias', [CmsController::class, 'getGanancias']);
+Route::post('', [CmsController::class, '']);

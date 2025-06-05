@@ -14,7 +14,7 @@ const restApp = express();
 const REST_PORT = 3001;
 const restServer = createServer(restApp);
 
-// Para redis!
+// Para redis!s
 (async () => {
   await redisClient.connect();
   console.log('✅ Redis conectado para manejo de usuarios online');
@@ -906,7 +906,21 @@ restApp.post('/api/chat/marcarComoLeido', async (req, res) => {
   }
 });
 
+restApp.post('/api/notificar-venta', async (req, res) => {
+  const { comprador_id, vendedor_id, publicacion_id } = req.body;
 
+  io.to(`user_${comprador_id}`).emit('venta_finalizada', {
+    receptor_id: comprador_id,
+    publicacion_id
+  });
+
+  io.to(`user_${vendedor_id}`).emit('venta_finalizada', {
+    receptor_id: vendedor_id,
+    publicacion_id
+  });
+
+  res.json({ success: true });
+});
 
 // ==============================================
 // MIDDLEWARES DE ERROR (DEBEN IR AL FINAL)

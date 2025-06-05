@@ -8,6 +8,7 @@ use App\Models\Plan;
 use App\Models\UserPlan;
 use App\Models\Publicacion;
 use Illuminate\Http\Request;
+use App\Models\UserSolicitud;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
@@ -52,12 +53,15 @@ class PlanesController extends Controller
         $planes = Plan::get();
         $userPlan = UserPlan::where('user_id', $user->id)->first();
 
+        $userSolicitudVerificado = UserSolicitud::where("user_id", $user->id)->exists();
+
         return response()->json([
             "Mensaje" => "Planes",
             "code" => 200,
             "planes" => $planes,
             "planActual" => $planActual,
             "userPlan" =>  $userPlan,
+            "userSolicitudVerificado" => $userSolicitudVerificado,
         ], 200);
     }
 

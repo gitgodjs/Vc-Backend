@@ -36,6 +36,9 @@ Route::get('user/obtenerUserToken', [UserController::class, 'obtenerUserToken'])
 Route::post('user/actualizarPerfil', [UserController::class, 'completarPerfil']);
 Route::post('user/actualizarTallas', [UserController::class, 'actualizarTallasUser']);
 Route::post('user/actualizarEstilos', [UserController::class, 'actualizarEstilosUser']);
+Route::post('user/reportarPublicacion', [UserController::class, 'reportarPublicacion']);
+Route::post('user/reportarUsuario', [UserController::class, 'reportarUsuario']);
+Route::post('user/solicitarVerificado', [UserController::class, 'solicitarVerificado']);
 
 Route::get('user/obtenerReseñas/{correo_user}', [UserController::class, 'obtenerReseñas']);
 Route::get('user/obtenerReseñasBasicas/{correo_user}', [UserController::class, 'obtenerReseñasBasicas']);
@@ -112,4 +115,17 @@ Route::post('mercadopago/confirm', [MercadoPagoController::class, 'confirmTransa
 Route::get('cms/getGeneralData', [CmsController::class, 'getGeneralData']);
 Route::get('cms/getNuevosUsuarios', [CmsController::class, 'getNuevosUsuarios']);
 Route::get('cms/getGanancias', [CmsController::class, 'getGanancias']);
-Route::post('', [CmsController::class, '']);
+Route::post('cms/createInversion', [CmsController::class, 'createInversion']); 
+Route::get('cms/getInversiones', [CmsController::class, 'getInversiones']);
+Route::post('cms/eliminarInversion', [CmsController::class, 'eliminarInversion']); 
+Route::get('cms/getPublicacionesData', [CmsController::class, 'getPublicacionesData']);
+Route::get('cms/getVentasData', [CmsController::class, 'getVentasData']);
+Route::get('cms/getUsersSolicitudes', [CmsController::class, 'getUsersSolicitudes']);
+Route::post('cms/verificarUsuario', [CmsController::class, 'verificarUsuario']);
+Route::get('cms/getReportes', [CmsController::class, 'getReportes']);
+
+Route::post('cms/eliminarReportePub', [CmsController::class, 'eliminarReportePub']);
+Route::post('cms/eliminarReporteUser', [CmsController::class, 'eliminarReporteUser']);
+
+Route::post('cms/eliminarPub', [CmsController::class, 'eliminarPub']);
+Route::post('cms/eliminarUser', [CmsController::class, 'eliminarUser']);

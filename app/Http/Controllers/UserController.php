@@ -9,10 +9,12 @@ use App\Models\UserCodigo;
 use App\Models\OpinionUser;
 use App\Models\Publicacion;
 use App\Models\UserEstilos;
+use App\Models\ReporteUsuario;
 use App\Models\PublicacionVenta;
 use App\Models\NotificacionTipo;
 use App\Models\UserNotificacion;
-
+use App\Models\ReportePublicacion;
+use App\Models\UserSolicitud;
 use Illuminate\Http\Request;
 use App\Mail\EmailCodeConfirmation;
 use Illuminate\Support\Facades\Mail;
@@ -535,6 +537,96 @@ class UserController extends Controller
             "mensaje" => "Notificaciones obtenidas con exito",
             "notifiaciones_leidas" => $notificacionesLeidas,
             "notifiaciones_noLeidas" => $notificacionesNoLeidas, 
+        ], 200);
+    }
+
+    public function reportarPublicacion(Request $request) {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        };
+
+        $reporteExiste = ReportePublicacion::where("id_creador", $user->id)
+            ->where("id_publicacion", $request->publicacion)
+            ->exists();
+
+        if ($reporteExiste) {
+            return response()->json([
+                'message' => '¡Publicación ya reportada!'
+            ], 400);
+        };
+
+        $publicacion = Publicacion::find($request->publicacion);
+
+        $reporte = ReportePublicacion::create([
+            'id_publicacion' => $publicacion->id,
+            'id_creador' => $user->id,
+            'id_dueño_publicacion' => $publicacion->id_user,
+            'titulo' => $request->titulo["category"],
+            'descripcion' => $request->texto,
+        ]);
+
+        return response()->json([
+            "mensaje" => "Reporte enviado con exito",
+        ], 200);
+    }
+
+    public function reportarUsuario(Request $request) {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        };
+
+        $reporteExiste = ReporteUsuario::where("id_creador", $user->id)
+            ->where("id_usuario_reportado", $request->reportado_id)
+            ->exists();
+
+        if ($reporteExiste) {
+            return response()->json([
+                'message' => '¡Usuario ya reportada!'
+            ], 400);
+        };
+
+        $reporte = ReporteUsuario::create([
+            'id_creador' => $user->id,
+            'id_usuario_reportado' => $request->reportado_id,
+            'titulo' => $request->titulo["category"],
+            'descripcion' => $request->texto,
+        ]);
+
+        return response()->json([
+            "mensaje" => "Reporte enviado con exito",
+        ], 200);
+    }
+
+    public function solicitarVerificado() {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        };
+
+        $solicitudExistente = UserSolicitud::where("user_id", $user->id)->exists();
+        if($solicitudExistente) {
+            return response()->json([
+                'message' => '¡Solicitud enviada activa!'
+            ], 400);
+        }
+        
+        $solicitud = UserSolicitud::create([
+            "user_id" => $user->id
+        ]);
+
+        return response()->json([
+            "mensaje" => "Solicitud enviada con exito",
         ], 200);
     }
 }

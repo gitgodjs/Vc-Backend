@@ -10,7 +10,7 @@ class ReportePublicacion extends Model
     use HasFactory;
 
     protected $table = 'reportes_publicaciones';
-
+    
     protected $fillable = [
         'id_publicacion',
         'id_creador',

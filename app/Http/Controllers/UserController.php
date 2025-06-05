@@ -88,7 +88,9 @@ class UserController extends Controller
     }
 
     public function obtenerUserCorreo($correo) {
-        $user = User::where("correo", $correo)->first();
+        $user = User::where("correo", $correo)
+            ->whereNull("deleted_at")
+            ->first();
         
         if(!$user){
             return response()->json([

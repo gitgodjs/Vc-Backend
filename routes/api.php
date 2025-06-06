@@ -73,7 +73,7 @@ Route::post('publicaciones/editar/{publicacion_id}', [PublicacionesController::c
     Route::get('publicaciones/getPublicacionesEnCompra/{page}', [PublicacionesController::class, 'getPublicacionesEnCompra']);
     
     // Para buscador
-    Route::post('publicaciones/getPublicacionesFiltro/{page}', [PublicacionesController::class, 'getPublicacionesFiltro']);
+    Route::post('publicaciones/getPublicacionesFiltro', [PublicacionesController::class, 'getPublicacionesFiltro']);
     
     // Para cada publicacion
     Route::get('publicaciones/getPublicacion/{user_id}/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
@@ -122,6 +122,8 @@ Route::get('cms/getPublicacionesData', [CmsController::class, 'getPublicacionesD
 Route::get('cms/getVentasData', [CmsController::class, 'getVentasData']);
 Route::get('cms/getUsersSolicitudes', [CmsController::class, 'getUsersSolicitudes']);
 Route::post('cms/verificarUsuario', [CmsController::class, 'verificarUsuario']);
+Route::post('cms/rechazarVerificacion', [CmsController::class, 'rechazarVerificacion']);
+
 Route::get('cms/getReportes', [CmsController::class, 'getReportes']);
 
 Route::post('cms/eliminarReportePub', [CmsController::class, 'eliminarReportePub']);

@@ -721,4 +721,14 @@ class CmsController extends Controller
             "usuario" => $usuario
         ], 200);
     }
+
+    public function rechazarVerificacion(Request $request) {
+        $user = auth()->user();
+
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        };
+    }
 }

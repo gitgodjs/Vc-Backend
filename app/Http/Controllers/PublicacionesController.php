@@ -796,7 +796,8 @@ class PublicacionesController extends Controller
         ], 200);
     }    
 
-    public function getPublicacionesFiltro(Request $request) {
+    public function getPublicacionesFiltro(Request $request)
+    {
         $user = auth()->user();
     
         if (!$user) {
@@ -805,9 +806,9 @@ class PublicacionesController extends Controller
     
         $query = Publicacion::whereNull('deleted_at')
             ->where('id_user', '!=', $user->id)
-            ->where('estado_publicacion', 1) 
+            ->where('estado_publicacion', 1)
             ->orderByDesc('fecha_impulso');
-            
+    
         $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search', 'estilo']);
     
         foreach ($filters as $key => $value) {
@@ -818,7 +819,9 @@ class PublicacionesController extends Controller
                         if (!$prenda) {
                             return response()->json([
                                 "mensaje" => "Prenda no encontrada",
-                                "publicaciones" => []
+                                "publicaciones" => [],
+                                "hasMore" => false,
+                                "publicacionesTotales" => 0
                             ], 200);
                         }
                         $query->where('prenda', $prenda->id);
@@ -833,7 +836,7 @@ class PublicacionesController extends Controller
                         break;
     
                     case 'categoria':
-                        if ($value != "Todos") {
+                        if ($value !== "Todos") {
                             $query->where('categoria', $value);
                         }
                         break;
@@ -844,6 +847,7 @@ class PublicacionesController extends Controller
                             return response()->json([
                                 "mensaje" => "Estilo no encontrado",
                                 "publicaciones" => [],
+                                "hasMore" => false,
                                 "publicacionesTotales" => 0
                             ], 200);
                         }
@@ -855,7 +859,7 @@ class PublicacionesController extends Controller
                         $query->where(function ($q) use ($searchWords) {
                             foreach ($searchWords as $word) {
                                 $q->orWhere('nombre', 'LIKE', '%' . trim($word) . '%')
-                                    ->orWhere('descripcion', 'LIKE', '%' . trim($word) . '%');
+                                  ->orWhere('descripcion', 'LIKE', '%' . trim($word) . '%');
                             }
                         });
                         break;
@@ -864,7 +868,7 @@ class PublicacionesController extends Controller
         }
     
         $perPage = 10;
-        $page = $request->input('page', 1);
+        $page = (int)$request->input('page', 1);
     
         $publicaciones = $query->paginate($perPage, ['*'], 'page', $page);
     
@@ -878,29 +882,16 @@ class PublicacionesController extends Controller
                 'nombre' => $publicacion->nombre,
                 'precio' => $publicacion->precio,
                 'ubicacion' => $publicacion->ubicacion,
-                'imagenUrl' => $publicacion->imagen, 
+                'imagenUrl' => $publicacion->imagen,
                 'guardada' => PublicacionGuardada::where('id_publicacion', $publicacion->id)
                     ->where('user_id', $user->id)
                     ->exists(),
             ];
         })->filter()->values();
-
-        if ($request->filled('search')) {
-            // Obtenemos IDs de usuarios con plan_id = 4
-            $usuariosPlanDestacado = UserPlan::where('plan_id', 4)
-                ->pluck('user_id')
-                ->toArray();
-        
-            // Reordenamos: los que tienen plan 4 primero
-            $publicacionesMapped = $publicacionesMapped->sortBy(function ($pub) use ($usuariosPlanDestacado) {
-                // Si el creador de la publicación tiene plan 4, le damos un valor más bajo (-1) para ponerlo al principio
-                return in_array($pub['id_creador'], $usuariosPlanDestacado) ? -1 : 1;
-            })->values(); // Importante: resetear índices con ->values()
-        }        
     
         if ($publicacionesMapped->isNotEmpty()) {
             $publicacionesMapped = $this->imageControll($publicacionesMapped);
-        };
+        }
     
         return response()->json([
             "mensaje" => "Publicaciones obtenidas",
@@ -909,6 +900,8 @@ class PublicacionesController extends Controller
             "publicacionesTotales" => $publicacionesTotales
         ], 200);
     }
+    
+    
 
     /////////////////////////////////
 

@@ -11,6 +11,7 @@ use App\Http\Controllers\ChatController;
 use App\Http\Controllers\PlanesController;
 use App\Http\Controllers\MercadoPagoController;
 use App\Http\Controllers\CmsController;
+use App\Http\Controllers\NotificacionesController;
 
 // Principal usuarios
 Route::post('register', [AuthController::class, 'register']);
@@ -131,3 +132,8 @@ Route::post('cms/eliminarReporteUser', [CmsController::class, 'eliminarReporteUs
 
 Route::post('cms/eliminarPub', [CmsController::class, 'eliminarPub']);
 Route::post('cms/eliminarUser', [CmsController::class, 'eliminarUser']);
+
+Route::post('notificacion/recibiste-oferta', [NotificacionesController::class, 'recibisteOferta']);
+Route::post('notificacion/aceptaste-oferta', [NotificacionesController::class, 'AceptasteOferta']);
+Route::post('notificacion/oferta-aceptada', [NotificacionesController::class, 'OfertaAceptada']);
+Route::post('notificacion/oferta-rechazada', [NotificacionesController::class, 'OfertaRechazada']);

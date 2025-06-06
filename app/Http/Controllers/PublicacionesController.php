@@ -23,16 +23,25 @@ use App\Models\RopaEstilo;
 use App\Models\ChatConversacion;
 use App\Models\ImagePublicacion;
 use App\Models\PublicacionGuardada;
-use App\Mail\EmailCodeConfirmation;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+
+use App\Mail\EmailRecibisteCalificacion;
+use App\Mail\EmailNuevaPublicacion;
+use Illuminate\Support\Facades\Mail;
+
 class PublicacionesController extends Controller
 {   
     public function crearPublicacion(Request $request)
     {
         $user = auth()->user();
         
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404);
+        };
+
         // Obtener los detalles de la prenda, estado, tipo, etc.
         $categoria = RopaCategorias::where("category", $request->categoria["category"])->first();
         $prenda = Prendas::where("prenda", $request->categoria["name"])->first();
@@ -76,6 +85,8 @@ class PublicacionesController extends Controller
             'ruta_destino' => "/publicaciones/{$publicacion->id}",
         ]);
     
+        Mail::to($user->correo)->send(new EmailNuevaPublicacion($user->correo, $request->titulo));
+
         // Respuesta con los datos de la publicación
         return response()->json([
             "mensaje" => "Publicación subida con éxito",
@@ -900,8 +911,6 @@ class PublicacionesController extends Controller
             "publicacionesTotales" => $publicacionesTotales
         ], 200);
     }
-    
-    
 
     /////////////////////////////////
 
@@ -1203,6 +1212,8 @@ class PublicacionesController extends Controller
             'created_at' => now(),
             'updated_at' => now(),
         ]);
+
+        Mail::to($receptor->correo)->send(new EmailRecibisteCalificacion($user->correo, $user->nombre, $publicacion->nombre));
 
         return response()->json([
             "mensaje" => "Datos recibidos correctamente",

@@ -16,10 +16,16 @@ use Illuminate\Http\Request;
 use App\Models\OpinionUser;
 use App\Models\PublicacionGuardada;
 use App\Models\PublicacionOferta;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use App\Models\NotificacionTipo;
+use App\Models\UserNotificacion;
+
+use App\Mail\EmailVerificacionRechazada;
+use App\Mail\EmailVerificacionAceptada;
+use App\Mail\VerificacionRechazadaMail;
+use Illuminate\Support\Facades\Mail;
 
 class CmsController extends Controller
 {
@@ -524,37 +530,6 @@ class CmsController extends Controller
         ], 200);
     }
 
-    public function verificarUsuario(Request $request) {
-        $user = auth()->user();
-
-        if (!$user) {
-            return response()->json([
-                'message' => 'Usuario no encontrado'
-            ], 404);
-        };
-
-        $user_a_verificar = User::find($request->user_id);
-        
-        if($user_a_verificar->verificado) {
-            return response()->json([
-                "mensaje" => "Usuario ya verificado!"
-            ], 404);
-        };
-
-        $user_a_verificar->verificado = 1;
-        $user_a_verificar->save();
-
-        $solicitud = UserSolicitud::where('user_id', $user_a_verificar->id)->first();
-
-        if ($solicitud) {
-            $solicitud->delete(); 
-        };
-
-        return response()->json([
-            "mensaje" => "Verificado con exito"
-        ], 200);
-    }
-
     public function getReportes() {
         $user = auth()->user();
 
@@ -722,13 +697,101 @@ class CmsController extends Controller
         ], 200);
     }
 
-    public function rechazarVerificacion(Request $request) {
-        $user = auth()->user();
-
-        if (!$user) {
+    public function verificarUsuario(Request $request) {
+        $admin = auth()->user(); // admin autenticado
+    
+        if (!$admin) {
             return response()->json([
                 'message' => 'Usuario no encontrado'
             ], 404);
         };
+    
+        $user = User::find($request->user_id);
+        
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no existe'
+            ], 404);
+        }
+    
+        if ($user->verificado) {
+            return response()->json([
+                "mensaje" => "Usuario ya verificado!"
+            ], 400);
+        };
+    
+        $user->verificado = 1;
+        $user->save();
+    
+        // Eliminar solicitud si existe
+        $solicitud = UserSolicitud::where('user_id', $user->id)->first();
+        if ($solicitud) {
+            $solicitud->delete(); 
+        }
+    
+        // Notificación (ID 17)
+        $tipoNotificacion = NotificacionTipo::find(17);
+        $mensaje = $tipoNotificacion->mensaje;
+    
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => $tipoNotificacion->id,
+            'mensaje' => $mensaje,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => $tipoNotificacion->ruta_destino ?? '/perfil',
+        ]);
+    
+        Mail::to($user->correo)->send(new EmailVerificacionAceptada($user->correo));
+    
+        return response()->json([
+            "mensaje" => "Verificado con éxito"
+        ], 200);
     }
+    
+    public function rechazarVerificacion(Request $request) {
+        $admin = auth()->user();
+    
+        if (!$admin) {
+            return response()->json([
+                'message' => 'Usuario no encontrado'
+            ], 404);
+        };
+    
+        $user = User::find($request->user_id);
+    
+        if (!$user) {
+            return response()->json([
+                'message' => 'Usuario no existe más'
+            ], 400);
+        }
+    
+        // Eliminar solicitud si existe
+        $solicitud = UserSolicitud::where('user_id', $user->id)->first();
+        if ($solicitud) {
+            $solicitud->delete(); 
+        }
+    
+        // Notificación (ID 18)
+        $tipoNotificacion = NotificacionTipo::find(18);
+        $mensaje = $tipoNotificacion->mensaje;
+    
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => $tipoNotificacion->id,
+            'mensaje' => $mensaje,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => $tipoNotificacion->ruta_destino ?? '/perfil',
+        ]);
+    
+        Mail::to($user->correo)->send(new EmailVerificacionRechazada($user->correo));
+    
+        return response()->json([
+            "mensaje" => "Rechazado con éxito"
+        ], 200);
+    }
+    
 }

@@ -16,9 +16,17 @@ use App\Models\UserNotificacion;
 use App\Models\ReportePublicacion;
 use App\Models\UserSolicitud;
 use Illuminate\Http\Request;
-use App\Mail\EmailCodeConfirmation;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
+
+use App\Mail\EmailVerificacionSolicitada;
+use App\Mail\EmailReportasteCuenta;
+use App\Mail\EmailCuentaReportada;
+use App\Mail\EmailPublicacionReportada;
+use App\Mail\EmailReportastePublicacion;
+use App\Mail\EmailCodeConfirmation;
+use App\Mail\EmailNuevaPublicacion;
+use Illuminate\Support\Facades\Mail;
+
 
 
 class UserController extends Controller
@@ -544,25 +552,34 @@ class UserController extends Controller
 
     public function reportarPublicacion(Request $request) {
         $user = auth()->user();
-
+    
         if (!$user) {
             return response()->json([
                 'message' => 'Usuario no encontrado'
             ], 404);
-        };
-
+        }
+    
         $reporteExiste = ReportePublicacion::where("id_creador", $user->id)
             ->where("id_publicacion", $request->publicacion)
             ->exists();
-
+    
         if ($reporteExiste) {
             return response()->json([
                 'message' => '¡Publicación ya reportada!'
             ], 400);
-        };
-
+        }
+    
         $publicacion = Publicacion::find($request->publicacion);
-
+    
+        if (!$publicacion) {
+            return response()->json([
+                'message' => 'Publicación no encontrada'
+            ], 404);
+        }
+    
+        $creadorPublicacion = User::find($publicacion->id_user);
+    
+        // Guardar el reporte
         $reporte = ReportePublicacion::create([
             'id_publicacion' => $publicacion->id,
             'id_creador' => $user->id,
@@ -570,11 +587,55 @@ class UserController extends Controller
             'titulo' => $request->titulo["category"],
             'descripcion' => $request->texto,
         ]);
-
+    
+        // Tipo de notificaciones
+        $tipoNotificacionReportas = NotificacionTipo::find(13); // reportaste_publicacion
+        $tipoNotificacionReportado = NotificacionTipo::find(15); // publicacion_reportada
+    
+        // Mensaje para quien REPORTA
+        $mensajeReportas = str_replace(
+            ['{{prenda}}'],
+            ['<span style="color:#864a00;">' . e($publicacion->nombre) . '</span>'],
+            $tipoNotificacionReportas->mensaje
+        );
+    
+        // Notificación para quien REPORTA
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => $tipoNotificacionReportas->id,
+            'mensaje' => $mensajeReportas,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => "/publicaciones/{$publicacion->id}",
+        ]);
+    
+        Mail::to($user->correo)->send(new EmailReportastePublicacion($user->correo, $publicacion->nombre));
+    
+        // Mensaje para el DUEÑO de la publicación
+        $mensajeReportado = str_replace(
+            ['{{prenda}}'],
+            ['<span style="color:#864a00;">' . e($publicacion->nombre) . '</span>'],
+            $tipoNotificacionReportado->mensaje
+        );
+    
+        // Notificación para el DUEÑO de la publicación reportada
+        UserNotificacion::create([
+            'user_id' => $creadorPublicacion->id,
+            'notificacion_tipo_id' => $tipoNotificacionReportado->id,
+            'mensaje' => $mensajeReportado,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => "/publicaciones/{$publicacion->id}",
+        ]);
+    
+        Mail::to($creadorPublicacion->correo)->send(new EmailPublicacionReportada($creadorPublicacion->correo, $publicacion->nombre));
+    
         return response()->json([
-            "mensaje" => "Reporte enviado con exito",
+            "mensaje" => "Reporte enviado con éxito",
         ], 200);
-    }
+    }    
 
     public function reportarUsuario(Request $request) {
         $user = auth()->user();
@@ -589,6 +650,8 @@ class UserController extends Controller
             ->where("id_usuario_reportado", $request->reportado_id)
             ->exists();
 
+        $reportado = User::find($request->reportado_id);
+
         if ($reporteExiste) {
             return response()->json([
                 'message' => '¡Usuario ya reportada!'
@@ -601,7 +664,42 @@ class UserController extends Controller
             'titulo' => $request->titulo["category"],
             'descripcion' => $request->texto,
         ]);
+        
+        //reportas
+        $tipoNotificacionReportas = NotificacionTipo::find(12);
+        $mensajeReportas = str_replace(
+            ['{{nombre_reportado}}'],
+            ['<span style="color:#864a00;">' . e($reportado->nombre) . '</span>'],
+            $tipoNotificacionReportas->mensaje
+        );
+        
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => $tipoNotificacionReportas->id,
+            'mensaje' => $mensajeReportas,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => "/perfil/{$reportado->correo}",
+        ]);        
 
+        Mail::to($user->correo)->send(new EmailReportasteCuenta($user->correo, $reportado->nombre));
+        //te reportaron
+        $tipoNotificacionReportado = NotificacionTipo::find(14);
+        $mensajeReportado = $tipoNotificacionReportado->mensaje; // No hay variables a reemplazar
+
+        UserNotificacion::create([
+            'user_id' => $reportado->id,
+            'notificacion_tipo_id' => $tipoNotificacionReportado->id,
+            'mensaje' => $mensajeReportado,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => $tipoNotificacionReportado->ruta_destino,
+        ]);
+
+        Mail::to($reportado->correo)->send(new EmailCuentaReportada($reportado->correo));
+        
         return response()->json([
             "mensaje" => "Reporte enviado con exito",
         ], 200);
@@ -609,26 +707,44 @@ class UserController extends Controller
 
     public function solicitarVerificado() {
         $user = auth()->user();
-
+    
         if (!$user) {
             return response()->json([
                 'message' => 'Usuario no encontrado'
             ], 404);
-        };
-
+        }
+    
         $solicitudExistente = UserSolicitud::where("user_id", $user->id)->exists();
-        if($solicitudExistente) {
+        if ($solicitudExistente) {
             return response()->json([
                 'message' => '¡Solicitud enviada activa!'
             ], 400);
         }
-        
+    
+        // Crear solicitud
         $solicitud = UserSolicitud::create([
             "user_id" => $user->id
         ]);
-
+    
+        // Notificación (ID 16)
+        $tipoNotificacion = NotificacionTipo::find(16);
+        $mensaje = $tipoNotificacion->mensaje; // No tiene variables para reemplazar
+    
+        UserNotificacion::create([
+            'user_id' => $user->id,
+            'notificacion_tipo_id' => $tipoNotificacion->id,
+            'mensaje' => $mensaje,
+            'leido' => 0,
+            'fecha_creacion' => now(),
+            'fecha_visto' => null,
+            'ruta_destino' => $tipoNotificacion->ruta_destino ?? '/',
+        ]);
+    
+        // Enviar correo
+        Mail::to($user->correo)->send(new EmailVerificacionSolicitada($user->correo));
+    
         return response()->json([
-            "mensaje" => "Solicitud enviada con exito",
+            "mensaje" => "Solicitud enviada con éxito",
         ], 200);
-    }
+    }    
 }

@@ -259,7 +259,7 @@ class UserController extends Controller
         ], 200);
     }
 
-    public function getUsers(Request $request) {
+    public function getUsers(Request $request, $page) {
         $user = auth()->user();
         
         if(!$user) {
@@ -277,7 +277,6 @@ class UserController extends Controller
         };
     
         $perPage = 10;
-        $page = $request->input('page', 1);
         $users = $query->with(['imagenProfile'])
             ->paginate($perPage, ['*'], 'page', $page);
         

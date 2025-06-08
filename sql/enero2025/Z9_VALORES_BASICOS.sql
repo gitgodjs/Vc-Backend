@@ -99,3 +99,49 @@ INSERT INTO ropa_tipo (tipo) VALUES
 ('De marca'),
 ('De diseño'),
 ('Otro');
+
+-- Nuevas prendas para la tabla ropa_prendas
+
+-- Calzado (3)
+INSERT INTO `ropa_prendas` (`prenda`, `categoria_id`) VALUES
+('Zapatillas casuales', 3),
+('Tacos', 3),
+('Crocs', 3),
+
+-- Ropa de Abrigo (4)
+('Camperones', 4),
+('Camperas', 4),
+('Sweaters', 4),
+('Pilotines', 4),
+
+-- Ropa Deportiva (5)
+('Remera deportiva', 5),
+('Joggins', 5),
+('Campera deportiva', 5),
+
+-- Ropa Formal (6)
+('Vestidos', 6),
+('Polleras', 6),
+('Chalecos', 6),
+('Sacos', 6),
+('Corbaras', 6),
+
+-- Ropa de Noche (7)
+('Bodis', 7),
+('Corsets', 7),
+('Blazers', 7),
+
+-- Accesorios (8)
+('Gorras', 8),
+('Lentes', 8),
+('Carteras / Bolsos', 8),
+('Riñoneras', 8),
+('Collares / Anillos', 8),
+('Guantes', 8),
+('Aros', 8),
+('Cinturones', 8),
+('Billeteras', 8),
+
+-- Ropa Casual (10)
+('Shorts casuales', 10),
+('Remeras casuales', 10);

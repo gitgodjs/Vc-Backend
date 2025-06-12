@@ -1,0 +1,85 @@
+-- Relación con ImageUser (imagenProfile)
+ALTER TABLE image_users ADD CONSTRAINT fk_image_users_id_usuario 
+FOREIGN KEY (id_usuario) REFERENCES users(id);
+
+-- Relación con ImagePortadaUser (imagenPortada)
+ALTER TABLE image_portada_users ADD CONSTRAINT fk_image_portada_users_id_usuario 
+FOREIGN KEY (id_usuario) REFERENCES users(id);
+
+-- Relación con Publicacion (publicaciones)
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_id_user 
+FOREIGN KEY (id_user) REFERENCES users(id);
+
+-- Relación con OpinionUser (opiniones)
+ALTER TABLE opinion_users ADD CONSTRAINT fk_opinion_users_id_comentado 
+FOREIGN KEY (id_comentado) REFERENCES users(id);
+
+-- Relación con UsuarioPublicacionGuardada (publicacionesGuardadas)
+ALTER TABLE usuario_publicacion_guardadas ADD CONSTRAINT fk_usuario_publicacion_guardadas_user_id 
+FOREIGN KEY (user_id) REFERENCES users(id);
+
+-- Relación con UsersTalla (tallas)
+ALTER TABLE users_tallas ADD CONSTRAINT fk_users_tallas_user_id 
+FOREIGN KEY (user_id) REFERENCES users(id);
+
+-- Relación con User (implícita por id_user como PK)
+ALTER TABLE users_codigos ADD CONSTRAINT fk_users_codigos_id_user 
+FOREIGN KEY (id_user) REFERENCES users(id);
+
+ALTER TABLE images_portada_users ADD CONSTRAINT fk_images_portada_users_id_usuario
+FOREIGN KEY (id_usuario) REFERENCES users(id);
+
+-- Relación con User
+ALTER TABLE images_publicaciones ADD CONSTRAINT fk_images_publicaciones_id_usuario
+FOREIGN KEY (id_usuario) REFERENCES users(id);
+
+-- Relación con Publicacion (la generaremos cuando me envíes el modelo Publicacion)
+ALTER TABLE images_publicaciones ADD CONSTRAINT fk_images_publicaciones_id_publicacion
+FOREIGN KEY (id_publicacion) REFERENCES publicaciones(id);
+
+ALTER TABLE images_users ADD CONSTRAINT fk_images_users_id_usuario
+FOREIGN KEY (id_usuario) REFERENCES users(id);
+
+-- Relación con User
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_id_user
+FOREIGN KEY (id_user) REFERENCES users(id);
+
+-- Relación con EstadoRopa
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_estado_ropa
+FOREIGN KEY (estado_ropa) REFERENCES estado_ropa(id);
+
+-- Relación con EstadoPublicacion
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_estado_publicacion
+FOREIGN KEY (estado_publicacion) REFERENCES estado_publicacion(id);
+
+-- Relación con RopaCategorias
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_categoria
+FOREIGN KEY (categoria) REFERENCES ropa_categorias(id);
+
+-- Relación con Prendas
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_prenda
+FOREIGN KEY (prenda) REFERENCES ropa_prendas(id);
+
+-- Relación con Talle (pendiente, falta el modelo Talle)
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_talle
+FOREIGN KEY (talle) REFERENCES talles(id);
+
+-- Relación con RopaTipo
+ALTER TABLE publicaciones ADD CONSTRAINT fk_publicaciones_tipo
+FOREIGN KEY (tipo) REFERENCES ropa_tipo(id);
+
+-- Relación con Publicacion
+ALTER TABLE publicaciones_guardadas ADD CONSTRAINT fk_publicaciones_guardadas_id_publicacion
+FOREIGN KEY (id_publicacion) REFERENCES publicaciones(id);
+
+-- Relación con User
+ALTER TABLE publicaciones_guardadas ADD CONSTRAINT fk_publicaciones_guardadas_user_id
+FOREIGN KEY (user_id) REFERENCES users(id);
+
+-- Relación con User (comentador)
+ALTER TABLE opiniones_users ADD CONSTRAINT fk_opiniones_users_id_comentador
+FOREIGN KEY (id_comentador) REFERENCES users(id);
+
+-- Relación con User (comentado)
+ALTER TABLE opiniones_users ADD CONSTRAINT fk_opiniones_users_id_comentado
+FOREIGN KEY (id_comentado) REFERENCES users(id);

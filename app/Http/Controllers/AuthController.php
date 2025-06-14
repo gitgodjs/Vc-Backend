@@ -22,7 +22,7 @@ use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function register(Request $request): JsonResponse
+    public function register(Request $request)
     {
         /* 1. VALIDAR (regla unique evita duplicados) */
         $validator = Validator::make($request->all(), [
@@ -60,26 +60,14 @@ class AuthController extends Controller
             ]);
         } catch (QueryException $e) {
             if ($e->getCode() === '23000') {
-                return response()->json([
-                    'message' => 'El correo ya está en uso',
-                ], 409);             
+                return response()->json(['message' => 'El correo ya está en uso'], 409);
             }
-            throw $e;                
+            throw $e;
         }
 
         $token = auth()->attempt($request->only('correo', 'password'));
 
         return $this->respondWithToken($token, 201);  
-    }
-
-    protected function respondWithToken($token)
-    {
-        return response()->json([
-            'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60,
-            'code' => '200',
-        ]);
     }
 
     public function login(Request $request)
@@ -92,6 +80,16 @@ class AuthController extends Controller
         }
     
         return $this->respondWithToken($token);    
+    }
+
+    protected function respondWithToken($token)
+    {
+        return response()->json([
+            'access_token' => $token,
+            'token_type' => 'bearer',
+            'expires_in' => auth()->factory()->getTTL() * 60,
+            'code' => '200',
+        ]);
     }
 
     public function get_credentials_from_token()
@@ -146,7 +144,7 @@ class AuthController extends Controller
     public function callback($provider)
     {
         $socialUser = Socialite::driver($provider)->stateless()->user();
-
+        $baseUrl = env('FRONTEND_URL');
         $user = User::firstOrCreate(
             ['correo' => $socialUser->getEmail()],
             [
@@ -160,7 +158,6 @@ class AuthController extends Controller
 
         $token = JWTAuth::fromUser($user);
 
-        return redirect("https://vintageclothesarg.com/?token=$token");
+        return redirect($baseUrl, "/?token=$token");
     }
-    
 }

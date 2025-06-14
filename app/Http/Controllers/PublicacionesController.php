@@ -157,7 +157,7 @@ class PublicacionesController extends Controller
     /////////////////////////////////
 
     public function imageControll($publicaciones) {
-        $baseUrl = env('APP_URL');
+        $baseUrl = env('FRONTEND_URL');
     
         $publicacionesImage = $publicaciones->map(function ($pub) use ($baseUrl) {
             $pub['imagenUrl'] = isset($pub['imagenUrl']) 
@@ -180,7 +180,7 @@ class PublicacionesController extends Controller
         }
     
         $user = User::find($user_id);
-        $baseUrl = env('APP_URL');
+        $baseUrl = env('FRONTEND_URL');
     
         $userPublicacion = User::with(["imagenProfile"])->find($publicacion->id_user);
         if ($userPublicacion->imagenProfile !== null) {
@@ -1066,7 +1066,7 @@ class PublicacionesController extends Controller
             ], 404);
         }
         
-        $baseUrl = env('APP_URL');
+        $baseUrl = env('FRONTEND_URL');
         $ventas = PublicacionVenta::where("id_vendedor", $user->id)->get();
         $estadisticas = [];
 

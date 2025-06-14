@@ -25,9 +25,9 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
-            $existe = User::where("correo", $request->correo)->first()->exists();
+            $existe = User::where("correo", $request->correo)->exists();
 
-            if(!$existe) {
+            if (!$existe) {
                 $user = User::create([
                     'correo'   => $request->correo,
                     'password' => bcrypt($request->password),
@@ -51,7 +51,6 @@ class AuthController extends Controller
             } else {
                 return response()->json(['message' => 'El correo ya está en uso'], 409);
             }
-            
         } catch (QueryException $e) {
             return response()->json(['message' => $e], 422);
         }

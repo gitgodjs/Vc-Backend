@@ -24,45 +24,36 @@ class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        /* 1. VALIDAR (regla unique evita duplicados) */
-        $validator = Validator::make($request->all(), [
-            'correo'   => 'required|email|unique:users,correo',
-            'password' => 'required|min:8|confirmed',   // exige password_confirmation
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'message' => 'Datos inválidos',
-                'errors'  => $validator->errors(),
-            ], 422);    
-        }
-
         try {
-            $user = User::create([
-                'correo'   => $request->correo,
-                'password' => bcrypt($request->password),
-            ]);
+            $existe = User::where("correo", $request->correo)->first()->exists();
 
-            UserPlan::create([
-                'user_id' => $user->id,
-                'plan_id' => 1,
-                'publicaciones_disponibles' => 5,
-                'impulsos_disponibles' => 0,
-                'fecha_compra' => now(),
-                'fecha_vencimiento' => now()->addMonths(12),
-            ]);
+            if(!$existe) {
+                $user = User::create([
+                    'correo'   => $request->correo,
+                    'password' => bcrypt($request->password),
+                ]);
 
-            UserNotificacion::create([
-                'user_id' => $user->id,
-                'notificacion_tipo_id' => 1,
-                'mensaje' => 'Te damos la bienvenida a <span style="color:#864a00;">Vintage Clothes</span>. Personaliza tu perfil y empieza a explorar.',
-                'ruta_destino' => "/perfil/{$user->correo}",
-            ]);
-        } catch (QueryException $e) {
-            if ($e->getCode() === '23000') {
+                UserPlan::create([
+                    'user_id' => $user->id,
+                    'plan_id' => 1,
+                    'publicaciones_disponibles' => 5,
+                    'impulsos_disponibles' => 0,
+                    'fecha_compra' => now(),
+                    'fecha_vencimiento' => now()->addMonths(12),
+                ]);
+
+                UserNotificacion::create([
+                    'user_id' => $user->id,
+                    'notificacion_tipo_id' => 1,
+                    'mensaje' => 'Te damos la bienvenida a <span style="color:#864a00;">Vintage Clothes</span>. Personaliza tu perfil y empieza a explorar.',
+                    'ruta_destino' => "/perfil/{$user->correo}",
+                ]);
+            } else {
                 return response()->json(['message' => 'El correo ya está en uso'], 409);
             }
-            throw $e;
+            
+        } catch (QueryException $e) {
+            return response()->json(['message' => $e], 422);
         }
 
         $token = auth()->attempt($request->only('correo', 'password'));
@@ -89,7 +80,7 @@ class AuthController extends Controller
             'token_type' => 'bearer',
             'expires_in' => auth()->factory()->getTTL() * 60,
             'code' => '200',
-        ]);
+        ], 201);
     }
 
     public function get_credentials_from_token()

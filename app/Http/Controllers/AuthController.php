@@ -160,7 +160,7 @@ class AuthController extends Controller
 
         $token = JWTAuth::fromUser($user);
 
-        return redirect("http://localhost:3000/?token=$token");
+        return redirect("https://vintageclothesarg.com/?token=$token");
     }
     
 }

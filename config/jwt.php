@@ -1,3 +1,4 @@
+GNU nano 7.2                                                                                                                                                                                                                                                                                                                                                                                                                                                                             jwt.php                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      
 <?php
 
 /*
@@ -131,7 +132,8 @@ return [
     |
     */
 
-    'algo' => env('JWT_ALGO', Tymon\JWTAuth\Providers\JWT\Provider::ALGO_HS256),
+
+    'algo' => env('JWT_ALGO', 'HS256'),
 
     /*
     |--------------------------------------------------------------------------

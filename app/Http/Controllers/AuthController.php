@@ -16,46 +16,60 @@ use App\Models\UserNotificacion;
 use Illuminate\Http\Request;
 use Tymon\JWTAuth\Facades\JWTAuth;
 use Tymon\JWTAuth\Exceptions\JWTException;
-            
+
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(Request $request): JsonResponse
     {
-        $data = request()->all();
-
-        $user = User::create([
-            'correo' => $data['correo'],
-            'password' => bcrypt($data['password']),
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]); 
-
-        UserPlan::create([
-            'user_id' => $user->id, 
-            'plan_id' => 1,
-            'publicaciones_disponibles' => 5,
-            'impulsos_disponibles' => 0,
-            'fecha_compra' => now(),
-            'fecha_vencimiento' => now()->addMonths(12),
+        /* 1. VALIDAR (regla unique evita duplicados) */
+        $validator = Validator::make($request->all(), [
+            'correo'   => 'required|email|unique:users,correo',
+            'password' => 'required|min:8|confirmed',   // exige password_confirmation
         ]);
 
-        UserNotificacion::create([
-            'user_id' => $user->id,
-            'notificacion_tipo_id' => 1,
-            'mensaje' => 'Te damos la bienvenida a <span style="color:#864a00;">Vintage Clothes</span>. Personaliza tu perfil y empieza a explorar.',
-            'fecha_creacion' => now(),
-            'ruta_destino' => `/perfil/${$user->correo}`,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        if ($validator->fails()) {
+            return response()->json([
+                'message' => 'Datos inválidos',
+                'errors'  => $validator->errors(),
+            ], 422);    
+        }
 
-        $credentials = $request->only('correo', 'password');
-        $token = auth()->attempt($credentials);
+        try {
+            $user = User::create([
+                'correo'   => $request->correo,
+                'password' => bcrypt($request->password),
+            ]);
 
-        return $this->respondWithToken($token);    
+            UserPlan::create([
+                'user_id' => $user->id,
+                'plan_id' => 1,
+                'publicaciones_disponibles' => 5,
+                'impulsos_disponibles' => 0,
+                'fecha_compra' => now(),
+                'fecha_vencimiento' => now()->addMonths(12),
+            ]);
+
+            UserNotificacion::create([
+                'user_id' => $user->id,
+                'notificacion_tipo_id' => 1,
+                'mensaje' => 'Te damos la bienvenida a <span style="color:#864a00;">Vintage Clothes</span>. Personaliza tu perfil y empieza a explorar.',
+                'ruta_destino' => "/perfil/{$user->correo}",
+            ]);
+        } catch (QueryException $e) {
+            if ($e->getCode() === '23000') {
+                return response()->json([
+                    'message' => 'El correo ya está en uso',
+                ], 409);             
+            }
+            throw $e;                
+        }
+
+        $token = auth()->attempt($request->only('correo', 'password'));
+
+        return $this->respondWithToken($token, 201);  
     }
 
     protected function respondWithToken($token)

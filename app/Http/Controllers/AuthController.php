@@ -147,6 +147,6 @@ class AuthController extends Controller
 
         $token = JWTAuth::fromUser($user);
 
-        return redirect($baseUrl, "/?token=$token");
+        return redirect()->away("$baseUrl/?token=$token");
     }
 }

@@ -69,18 +69,17 @@ class AuthController extends Controller
             return response()->json(['error' => 'Unauthorized', "cred"=>$credentials], 401);
         }
     
-        return $this->respondWithToken($token);    
+        return $this->respondWithToken($token, 201);    
     }
 
-    protected function respondWithToken($token)
+    protected function respondWithToken(string $token, int $status = 200)
     {
         return response()->json([
             'access_token' => $token,
-            'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60,
-            'code' => '200',
-        ], 201);
-    }
+            'token_type'   => 'bearer',
+            'expires_in'   => auth()->factory()->getTTL() * 60,
+        ], $status);
+    }    
 
     public function get_credentials_from_token()
     {

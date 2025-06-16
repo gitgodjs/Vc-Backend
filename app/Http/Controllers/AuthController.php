@@ -20,6 +20,8 @@ use Tymon\JWTAuth\Exceptions\JWTException;
 use Laravel\Socialite\Facades\Socialite;
 use Illuminate\Support\Str;
 
+use Symfony\Component\HttpFoundation\Cookie;
+
 class AuthController extends Controller
 {
     public function register(Request $request)
@@ -133,20 +135,58 @@ class AuthController extends Controller
     public function callback($provider)
     {
         $socialUser = Socialite::driver($provider)->stateless()->user();
-        $baseUrl = env('FRONTEND_URL');
+    
         $user = User::firstOrCreate(
             ['correo' => $socialUser->getEmail()],
             [
-                'password' => bcrypt(Str::random(40)),
-                'nombre' => $socialUser->getName(),
-                'username' => Str::slug($socialUser->getName()),
-                'email_verified_at' => now(),
-                'red_social' => $provider,
+                'password'         => bcrypt(Str::random(40)),
+                'nombre'           => $socialUser->getName(),
+                'username'         => Str::slug($socialUser->getName()),
+                'email_verified_at'=> now(),
+                'red_social'       => $provider,
             ]
         );
+    
+        $token   = auth('api')->login($user);
+        $minutes = auth('api')->factory()->getTTL();  
+    
+        $cookie = cookie(
+            'access_token', $token, $minutes,
+            '/', '.vintageclothesarg.com',
+            true,  // secure
+            true,  // http‑only
+            false,
+            'Lax'
+        );
+    
+        return redirect()
+            ->away(env('FRONTEND_URL') . '/?googleSession=1')
+            ->withCookie($cookie);
+    }
 
-        $token = JWTAuth::fromUser($user);
+    public function extract_jwt(Request $request)
+    {
+        $token = $request->cookie('access_token');
+        if (!$token) {
+            return response()->json(['error' => 'Cookie missing'], 401);
+        }
 
-        return redirect()->away("$baseUrl/?token=$token");
+        try {
+            $payload = JWTAuth::setToken($token)->getPayload();
+            $user    = JWTAuth::authenticate($token);
+        } catch (\Exception $e) {
+            return response()->json(['error' => 'Token invalid'], 401);
+        }
+
+        $expiresIn   = $payload['exp'] - time();  // segundos restantes
+        $paraReseña  = obtenerParaReseñar($user->id); 
+
+        return response()->json([
+            'access_token' => $token,
+            'expires_in'   => $expiresIn,
+            'user'         => $user,
+        ])->withCookie(
+            cookie()->forget('access_token', '/', '.vintageclothesarg.com')
+        );
     }
 }

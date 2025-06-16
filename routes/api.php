@@ -12,6 +12,7 @@ Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
 Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirect']);
 Route::get('/auth/{provider}/callback', [AuthController::class, 'callback']);
+Route::get('auth/extract-jwt', [AuthController::class, 'extract_jwt']);
 
 Route::middleware('auth:api')->group(function () {
   Route::get('get_credentials_from_token', [AuthController::class, 'get_credentials_from_token']);

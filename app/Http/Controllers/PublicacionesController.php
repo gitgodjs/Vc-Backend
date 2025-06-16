@@ -168,216 +168,140 @@ class PublicacionesController extends Controller
         return $publicacionesImage;
     }       
 
-    public function getPublicacion($user_id, $publicacion_id) {
-        $publicacion = Publicacion::with(["imagenes"])->find($publicacion_id);
-    
+    public function getPublicacion($user_id, $publicacion_id)
+    {
+        $publicacion = Publicacion::with('imagenes')->find($publicacion_id);
         if (!$publicacion) {
-            return response()->json([
-                "mensaje" => "No existe la publicación",
-                "code" => 404,
-            ], 404);
+            return response()->json(['mensaje' => 'No existe la publicación', 'code' => 404], 404);
         }
     
         $user = User::find($user_id);
-        $baseUrl = env('FRONTEND_URL');
-    
-        $userPublicacion = User::with(["imagenProfile"])->find($publicacion->id_user);
-        if ($userPublicacion->imagenProfile !== null) {
-            $userPublicacion->imagen = $baseUrl . "/storage/" . $userPublicacion->imagenProfile->url;
+        if (!$user) {
+            return response()->json(['mensaje' => 'Usuario no encontrado', 'code' => 404], 404);
         }
     
-        $itsMe = $user->id === $publicacion->id_user;
+        /* 👉 Foto de perfil del dueño de la publicación */
+        $userPublicacion = User::with('imagenProfile')->find($publicacion->id_user);
+        $userPublicacion->imagen = $userPublicacion->imagenProfile
+            ? asset(Storage::disk('public')->url($userPublicacion->imagenProfile->url))
+            : null;
     
+        /* 👉 ¿Es mi publicación? */
+        $itsMe         = $user->id === $publicacion->id_user;
         $yaFueOfertada = false;
         $mensajeOferta = null;
         $mejoresOfertas = null;
-
+    
+        /* 👉 Lógica de ofertas (sólo si NO soy el dueño) */
         if (!$itsMe) {
-            $conversacion = ChatConversacion::where(function ($query) use ($user, $publicacion) {
-                $query->where('emisor_id', $user->id)
-                    ->where('receptor_id', $publicacion->id_user);
-            })->orWhere(function ($query) use ($user, $publicacion) {
-                $query->where('emisor_id', $publicacion->id_user)
-                    ->where('receptor_id', $user->id);
+            $conversacion = ChatConversacion::where(function ($q) use ($user, $publicacion) {
+                $q->where('emisor_id', $user->id)
+                  ->where('receptor_id', $publicacion->id_user);
+            })->orWhere(function ($q) use ($user, $publicacion) {
+                $q->where('emisor_id', $publicacion->id_user)
+                  ->where('receptor_id', $user->id);
             })->first();
     
             if ($conversacion) {
                 $oferta = PublicacionOferta::whereHas('mensaje', function ($q) use ($conversacion) {
-                    $q->where('conversation_id', $conversacion->id);
-                })
-                ->where('publicacion_id', $publicacion->id)
-                ->whereNull('deleted_at')
-                ->with('mensaje')
-                ->orderBy('created_at', 'desc')
-                ->first();
-            
+                                $q->where('conversation_id', $conversacion->id);
+                            })
+                            ->where('publicacion_id', $publicacion->id)
+                            ->whereNull('deleted_at')
+                            ->with('mensaje')
+                            ->latest()
+                            ->first();
+    
                 if ($oferta && $oferta->estado_oferta_id != 3) {
                     $yaFueOfertada = true;
                     $mensajeOferta = $oferta->mensaje;
                 }
-            };
+            }
     
-            $publicacion->visitas += 1;
-            $publicacion->save();
+            /* Incrementar visitas */
+            $publicacion->increment('visitas');
         } else {
-            // Traer las 10 mejores ofertas basadas en precio y rate_general del ofertante
+            /* 👉 Traer 10 mejores ofertas */
             $mejoresOfertas = PublicacionOferta::where('publicacion_id', $publicacion->id)
                 ->whereNull('deleted_at')
-                ->whereHas('mensaje.emisor') // Asegura que haya usuario
                 ->with([
-                    'mensaje:id,conversation_id,emisor_id', // Cargamos solo chat_id y user_id del mensaje
+                    'mensaje:id,conversation_id,emisor_id',
                     'mensaje.emisor:id,username',
-                    'mensaje.emisor.imagenProfile:id,id_usuario,url'  // Si querés cargar el usuario del mensaje también
+                    'mensaje.emisor.imagenProfile:id,id_usuario,url',
                 ])
                 ->get()
                 ->map(function ($oferta) {
-                    $user = $oferta->mensaje->emisor;
-
-                    $promedioRate = $user->opiniones()->avg('rate_general') ?? 0;
-                
+                    $userOfer = $oferta->mensaje->emisor;
+                    $promRate = $userOfer->opiniones()->avg('rate_general') ?? 0;
+    
                     return [
-                        'id' => $oferta->id,
-                        'user' => [
-                            'id' => $user->id,
-                            'username' => $user->username,
-                            'foto_perfil_url' => $user->getFotoPerfilUrl(), 
+                        'id'              => $oferta->id,
+                        'user'            => [
+                            'id'   => $userOfer->id,
+                            'username' => $userOfer->username,
+                            'foto_perfil_url' => $userOfer->getFotoPerfilUrl(),
                         ],
-                        'precio' => $oferta->precio,
+                        'precio'          => $oferta->precio,
                         'conversacion_id' => $oferta->mensaje->conversation->id ?? null,
-                        'promedio_rate' => $promedioRate,
+                        'promedio_rate'   => $promRate,
                     ];
                 })
                 ->sortByDesc('precio')
                 ->sortByDesc('promedio_rate')
                 ->take(10)
-                ->values(); // Para reindexar
-        };
-        
-    
-        $imagenesUrls = [];
-        foreach ($publicacion->imagenes as $imagen) {
-            $imagenesUrls[] = $baseUrl . "/storage/" . $imagen->url;
+                ->values();
         }
     
+        /* 👉 URLs absolutas de las imágenes de la publicación */
+        $imagenesUrls = $publicacion->imagenes->map(function ($img) {
+            return asset(Storage::disk('public')->url($img->url));
+        });
+    
+        /* 👉 Datos auxiliares de la prenda */
         $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
-        $prenda = Prendas::find($publicacion->prenda);
-        $categoria = RopaCategorias::find($publicacion->categoria);
-        $tipo = RopaTipo::find($publicacion->tipo);
-
-        if($publicacion->id_estilo != null){
-            $estilo = RopaEstilo::find($publicacion->id_estilo);
-        };
-
+        $prenda      = Prendas::find($publicacion->prenda);
+        $categoria   = RopaCategorias::find($publicacion->categoria);
+        $tipo        = RopaTipo::find($publicacion->tipo);
+        $estilo      = $publicacion->id_estilo ? RopaEstilo::find($publicacion->id_estilo) : null;
+    
+        /* 👉 ¿Guardada por el usuario? */
         $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
-            ->where('user_id', $user->id)
-            ->exists();
+                                       ->where('user_id', $user->id)
+                                       ->exists();
     
         Carbon::setLocale('es');
         $creador = User::find($publicacion->id_user);
     
         $publicacionFormateada = [
-            'id' => $publicacion->id,
-            'creador' => $creador,
-            'nombre' => $publicacion->nombre,
-            'descripcion' => $publicacion->descripcion,
-            'precio' => $publicacion->precio,
-            'imagenes' => $imagenesUrls,
-            'estado_publicacion' => $publicacion->estado_publicacion,
-            'estado_ropa' => $estado_ropa->estado,
-            'estilo_ropa' => $estilo->estilo ?? null,
-            'categoria' => $categoria->category,
-            'prenda' => $prenda->prenda,
-            'talle' => $publicacion->talle,
-            'tipo' => $tipo->tipo,
-            'ubicacion' => $publicacion->ubicacion,
-            'visitas' => $publicacion->visitas,
+            'id'                => $publicacion->id,
+            'creador'           => $creador,
+            'nombre'            => $publicacion->nombre,
+            'descripcion'       => $publicacion->descripcion,
+            'precio'            => $publicacion->precio,
+            'imagenes'          => $imagenesUrls,
+            'estado_publicacion'=> $publicacion->estado_publicacion,
+            'estado_ropa'       => $estado_ropa->estado,
+            'estilo_ropa'       => $estilo->estilo ?? null,
+            'categoria'         => $categoria->category,
+            'prenda'            => $prenda->prenda,
+            'talle'             => $publicacion->talle,
+            'tipo'              => $tipo->tipo,
+            'ubicacion'         => $publicacion->ubicacion,
+            'visitas'           => $publicacion->visitas,
             'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(),
-            'fecha_original' => $publicacion->created_at,
-            'images_array' => $publicacion->imagenes,
-            'fecha_impulso' => $publicacion->fecha_impulso,
-            'guardada' => $guardada,
+            'fecha_original'    => $publicacion->created_at,
+            'fecha_impulso'     => $publicacion->fecha_impulso,
+            'guardada'          => $guardada,
         ];
     
         return response()->json([
-            "mensaje" => "Publicación obtenida con éxito",
-            "publicacion" => $publicacionFormateada,
-            "userPublicacion" => $userPublicacion,
-            "itsMe" => $itsMe,
-            "ofertaExistente" => $yaFueOfertada,
-            "mensajeOferta" => $mensajeOferta,
-            "mejoresOfertas" => $mejoresOfertas,
-        ], 200);
-    }    
-
-    public function getPublicacionesUser($user_id, $userProfile_id, $page) {
-        $limit = 20;
-        $userProfile = User::find($userProfile_id);
-    
-        if (!$userProfile) {
-            return response()->json([
-                "mensaje" => "Usuario no encontrado!"
-            ], 404); 
-        }
-    
-        $user = User::find($user_id);
-        $offset = ($page - 1) * $limit;
-    
-        // Solo publicaciones con estado_publicacion distinto de 3 (no vendidas)
-        $publicacionesUser = Publicacion::where("id_user", $userProfile_id)
-            ->where("estado_publicacion", "!=", 3)
-            ->skip($offset)
-            ->take($limit)
-            ->get();
-    
-        Carbon::setLocale('es');
-    
-        $publicaciones = $publicacionesUser->map(function ($publicacion) use ($user) {
-            $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
-            $prenda = Prendas::find($publicacion->prenda);
-            $categoria = RopaCategorias::find($publicacion->categoria);
-            $tipo = RopaTipo::find($publicacion->tipo);
-            $guardada = false;
-    
-            if ($user) {
-                $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
-                    ->where('user_id', $user->id)
-                    ->exists();
-            };
-    
-            return [
-                'id' => $publicacion->id,
-                'id_creador' => $publicacion->id_user,
-                'nombre' => $publicacion->nombre,
-                'descripcion' => $publicacion->descripcion,
-                'precio' => $publicacion->precio,
-                'imagenUrl' => $publicacion->imagen,
-                'estado_publicacion' => $publicacion->estado_publicacion,
-                'estado_ropa' => $estado_ropa->estado,
-                'categoria' => $categoria->category,
-                'prenda' => $prenda->prenda,
-                'talle' => $publicacion->talle,
-                'tipo' => $tipo->tipo,
-                'ubicacion' => $publicacion->ubicacion,
-                'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(),
-                'fecha_original' => $publicacion->created_at,
-                'guardada' => $guardada,
-            ];
-        });
-    
-        $publicaciones = $this->imageControll($publicaciones);
-    
-        $publicacionesTotales = Publicacion::where("id_user", $userProfile_id)
-            ->where("estado_publicacion", "!=", 3)
-            ->count();
-    
-        $hasMore = ($publicacionesTotales > $offset + $limit);
-    
-        return response()->json([
-            'message' => 'Publicaciones obtenidas!',
-            'publicaciones' => $publicaciones,
-            'publicacionesTotales' => $publicacionesTotales,
-            'page' => $page,
-            'hasMore' => $hasMore
+            'mensaje'        => 'Publicación obtenida con éxito',
+            'publicacion'    => $publicacionFormateada,
+            'userPublicacion'=> $userPublicacion,
+            'itsMe'          => $itsMe,
+            'ofertaExistente'=> $yaFueOfertada,
+            'mensajeOferta'  => $mensajeOferta,
+            'mejoresOfertas' => $mejoresOfertas,
         ], 200);
     }
     

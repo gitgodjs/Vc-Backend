@@ -155,19 +155,18 @@ class PublicacionesController extends Controller
     }
 
     /////////////////////////////////
-
-    public function imageControll($publicaciones) {
-        $baseUrl = env('FRONTEND_URL');
-    
-        $publicacionesImage = $publicaciones->map(function ($pub) use ($baseUrl) {
-            $pub['imagenUrl'] = isset($pub['imagenUrl']) 
-                ? $baseUrl . "/storage/" . $pub['imagenUrl']["url"]
+    public function imageControll($publicaciones)
+    {
+        $publicacionesImage = $publicaciones->map(function ($pub) {
+            $pub['imagenUrl'] = isset($pub['imagenUrl']['url'])
+                ? asset(Storage::disk('public')->url($pub['imagenUrl']['url']))
                 : null;
+    
             return $pub;
         });
     
         return $publicacionesImage;
-    }    
+    }       
 
     public function getPublicacion($user_id, $publicacion_id) {
         $publicacion = Publicacion::with(["imagenes"])->find($publicacion_id);

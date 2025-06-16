@@ -179,7 +179,6 @@ class AuthController extends Controller
         }
 
         $expiresIn   = $payload['exp'] - time();  // segundos restantes
-        $paraReseña  = obtenerParaReseñar($user->id); 
 
         return response()->json([
             'access_token' => $token,

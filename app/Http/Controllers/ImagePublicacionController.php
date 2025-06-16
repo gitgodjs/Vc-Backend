@@ -90,47 +90,21 @@ class ImagePublicacionController extends Controller
         ]);
     }
 
-    public function getPubImageById($publicacion_id) {
-        $publicacion = Publicacion::find($publicacion_id);
-        
-        if (!$publicacion) {
-            return response()->json([
-                'message' => 'Publicacion no encontrada',
-                'code' => 404
-            ], 404);
-        }
+    public function getImagesById(Request $request)
+    {
+        $pubs = collect($request->publicaciones);
 
-        $image = ImagePublicacion::where("id_publicacion", $publicacion_id)->first();
-        
-        if (!$image) {
-            return response()->json([
-                'message' => 'No hay imagen',
-            ], 200);
-        }
-        $baseUrl = env('APP_URL');
-        $fullImageUrl = $baseUrl . "/storage/" . $image->url; 
-
-        return response()->json([
-            'mensaje' => 'Imagen encontrada',
-            'imageUrl' => $fullImageUrl,  
-        ]);
-    }
-
-    public function getImagesById(Request $request) {
-        $publicaciones = collect($request->publicaciones); 
-        $baseUrl = env('APP_URL');
-        
-        $publicacionesTransformadas = $publicaciones->map(function ($pub) use ($baseUrl) {
-            $pub['imagenUrl'] = isset($pub['imagenUrl']['url']) 
-                ? $baseUrl . "/storage/" . $pub['imagenUrl']['url']
+        $transformadas = $pubs->map(function ($pub) {
+            $pub['imagenUrl'] = isset($pub['imagenUrl']['url'])
+                ? asset(Storage::disk('public')->url($pub['imagenUrl']['url']))
                 : null;
-            
+
             return $pub;
         });
-    
+
         return response()->json([
-            'mensaje' => 'Imágenes procesadas',
-            "publicaciones" => $publicacionesTransformadas,
+            'mensaje'      => 'Imágenes procesadas',
+            'publicaciones'=> $transformadas,
         ]);
     }
 

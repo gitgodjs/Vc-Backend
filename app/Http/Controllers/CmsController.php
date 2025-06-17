@@ -671,30 +671,41 @@ class CmsController extends Controller
 
     public function eliminarUser(Request $request)
     {
-        /* 1. Verificar usuario autenticado */
+        /* 1. Usuario autenticado (admin / moderador) */
         $admin = auth()->user();
         if (!$admin) {
             return response()->json(['message' => 'Usuario no autenticado'], 401);
         }
     
-        /* 3. Buscar usuario a eliminar */
-        $usuario = User::find($request->user_id);
+        /* 2. Validar parámetros */
+        $request->validate([
+            'user_id'     => 'required|integer|exists:users,id',
+            'reporte_id'  => 'nullable',              // puede ser int o array
+        ]);
     
-        /* 4. Marcar el reporte como resuelto (si se envió) */
-        if ($request->filled('reporte_id')) {
-            $reporte = ReporteUsuario::find($request->reporte_id);
-            $reporte->estado = 'resuelto';
-            $reporte->save();
+        /* 3. Usuario a eliminar */
+        $usuario = User::find($request->user_id);
+        if (!$usuario) {
+            return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
     
-        /* 5. Eliminar al usuario */
+        /* 4. Marcar uno o varios reportes como resueltos */
+        if ($request->filled('reporte_id')) {
+            $ids = is_array($request->reporte_id)
+                 ? $request->reporte_id          // array de IDs
+                 : [$request->reporte_id];       // ID único en array
+    
+            ReporteUsuario::whereIn('id', $ids)->update(['estado' => 'resuelto']);
+        }
+    
+        /* 5. Eliminar usuario */
         $usuario->delete();
     
         return response()->json([
             'mensaje' => 'Usuario eliminado con éxito',
             'usuario' => $usuario,
         ], 200);
-    }    
+    }     
 
     public function verificarUsuario(Request $request) {
         $admin = auth()->user(); // admin autenticado

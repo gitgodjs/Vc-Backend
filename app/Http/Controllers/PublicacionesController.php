@@ -254,9 +254,10 @@ class PublicacionesController extends Controller
     
         // 👉 URLs absolutas de las imágenes de la publicación
         $imagenesUrls = $publicacion->imagenes
+            ->sortBy('id')                                 // 👈 ordena por id ASC
             ->map(fn ($img) => asset(Storage::disk('public')->url($img->url)))
             ->values()
-            ->all(); // <-- fix para asegurar array completo
+            ->all();
     
         // 👉 Datos auxiliares de la prenda
         $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
@@ -267,8 +268,8 @@ class PublicacionesController extends Controller
     
         // 👉 ¿Guardada por el usuario?
         $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
-                                       ->where('user_id', $user->id)
-                                       ->exists();
+            ->where('user_id', $user->id)
+            ->exists();
     
         Carbon::setLocale('es');
         $creador = User::find($publicacion->id_user);

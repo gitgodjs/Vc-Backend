@@ -180,19 +180,19 @@ class PublicacionesController extends Controller
             return response()->json(['mensaje' => 'Usuario no encontrado', 'code' => 404], 404);
         }
     
-        /* 👉 Foto de perfil del dueño de la publicación */
+        // 👉 Foto de perfil del dueño de la publicación
         $userPublicacion = User::with('imagenProfile')->find($publicacion->id_user);
         $userPublicacion->imagen = $userPublicacion->imagenProfile
             ? asset(Storage::disk('public')->url($userPublicacion->imagenProfile->url))
             : null;
     
-        /* 👉 ¿Es mi publicación? */
+        // 👉 ¿Es mi publicación?
         $itsMe         = $user->id === $publicacion->id_user;
         $yaFueOfertada = false;
         $mensajeOferta = null;
         $mejoresOfertas = null;
     
-        /* 👉 Lógica de ofertas (sólo si NO soy el dueño) */
+        // 👉 Lógica de ofertas (sólo si NO soy el dueño)
         if (!$itsMe) {
             $conversacion = ChatConversacion::where(function ($q) use ($user, $publicacion) {
                 $q->where('emisor_id', $user->id)
@@ -218,10 +218,10 @@ class PublicacionesController extends Controller
                 }
             }
     
-            /* Incrementar visitas */
+            // Incrementar visitas
             $publicacion->increment('visitas');
         } else {
-            /* 👉 Traer 10 mejores ofertas */
+            // 👉 Traer 10 mejores ofertas
             $mejoresOfertas = PublicacionOferta::where('publicacion_id', $publicacion->id)
                 ->whereNull('deleted_at')
                 ->with([
@@ -252,19 +252,20 @@ class PublicacionesController extends Controller
                 ->values();
         }
     
-        /* 👉 URLs absolutas de las imágenes de la publicación */
-        $imagenesUrls = $publicacion->imagenes->map(function ($img) {
-            return asset(Storage::disk('public')->url($img->url));
-        });
+        // 👉 URLs absolutas de las imágenes de la publicación
+        $imagenesUrls = $publicacion->imagenes
+            ->map(fn ($img) => asset(Storage::disk('public')->url($img->url)))
+            ->values()
+            ->all(); // <-- fix para asegurar array completo
     
-        /* 👉 Datos auxiliares de la prenda */
+        // 👉 Datos auxiliares de la prenda
         $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
         $prenda      = Prendas::find($publicacion->prenda);
         $categoria   = RopaCategorias::find($publicacion->categoria);
         $tipo        = RopaTipo::find($publicacion->tipo);
         $estilo      = $publicacion->id_estilo ? RopaEstilo::find($publicacion->id_estilo) : null;
     
-        /* 👉 ¿Guardada por el usuario? */
+        // 👉 ¿Guardada por el usuario?
         $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
                                        ->where('user_id', $user->id)
                                        ->exists();
@@ -295,13 +296,13 @@ class PublicacionesController extends Controller
         ];
     
         return response()->json([
-            'mensaje'        => 'Publicación obtenida con éxito',
-            'publicacion'    => $publicacionFormateada,
-            'userPublicacion'=> $userPublicacion,
-            'itsMe'          => $itsMe,
-            'ofertaExistente'=> $yaFueOfertada,
-            'mensajeOferta'  => $mensajeOferta,
-            'mejoresOfertas' => $mejoresOfertas,
+            'mensaje'         => 'Publicación obtenida con éxito',
+            'publicacion'     => $publicacionFormateada,
+            'userPublicacion' => $userPublicacion,
+            'itsMe'           => $itsMe,
+            'ofertaExistente' => $yaFueOfertada,
+            'mensajeOferta'   => $mensajeOferta,
+            'mejoresOfertas'  => $mejoresOfertas,
         ], 200);
     }
     

@@ -15,6 +15,9 @@ class ImagePublicacionController extends Controller
      * ------------------------------------------------------------ */
     public function updateImage(Request $request, $publicacion_id)
     {
+        /* -----------------------------------------------------------
+        * 1. Verificaciones básicas
+        * --------------------------------------------------------- */
         $user = auth()->user();
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
@@ -25,40 +28,45 @@ class ImagePublicacionController extends Controller
             return response()->json(['message' => 'Publicación no encontrada'], 404);
         }
 
+        /* -----------------------------------------------------------
+        * 2. Debe venir al menos un archivo en publicacionPicture[]
+        * --------------------------------------------------------- */
+        if (!$request->hasFile('publicacionPicture')) {
+            return response()->json(['message' => 'No se encontraron imágenes'], 400);
+        }
+
         try {
-            /* 🔄 Borrar imágenes anteriores */
+            /* -------------------------------------------------------
+            * 3. Borrar imágenes anteriores **una sola vez**
+            * ----------------------------------------------------- */
             ImagePublicacion::where('id_publicacion', $publicacion_id)->each(function ($img) {
-                if (Storage::disk('public')->exists($img->url)) {
-                    Storage::disk('public')->delete($img->url);
-                }
+                Storage::disk('public')->delete($img->url); // delete() ya verifica existencia
                 $img->delete();
             });
 
-            /* 📤 Subir nuevas imágenes */
-            if ($request->hasFile('publicacionPicture')) {
-                foreach ($request->file('publicacionPicture') as $imageFile) {
-                    $filename = 'image_publicacion_' . time() . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
-                    $relativePath = $imageFile->storeAs('images_publicaciones', $filename, 'public'); // guarda y devuelve ruta relativa
+            /* -------------------------------------------------------
+            * 4. Procesar y guardar todas las imágenes recibidas
+            * ----------------------------------------------------- */
+            foreach ($request->file('publicacionPicture') as $imageFile) {
+                $filename     = 'image_publicacion_' . now()->timestamp . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
+                $relativePath = $imageFile->storeAs('images_publicaciones', $filename, 'public'); // devuelve path relativo
 
-                    ImagePublicacion::create([
-                        'id_usuario'     => $publicacion->id_user,
-                        'id_publicacion' => $publicacion_id,
-                        'url'            => $relativePath,
-                        'tamaño'         => $imageFile->getSize(),
-                        'nombre'         => $imageFile->getClientOriginalName(),
-                        'extension'      => $imageFile->getClientOriginalExtension(),
-                    ]);
-                }
-
-                return response()->json(['message' => 'Imágenes actualizadas con éxito'], 200);
+                ImagePublicacion::create([
+                    'id_usuario'     => $publicacion->id_user,
+                    'id_publicacion' => $publicacion_id,
+                    'url'            => $relativePath,
+                    'tamaño'         => $imageFile->getSize(),
+                    'nombre'         => $imageFile->getClientOriginalName(),
+                    'extension'      => $imageFile->getClientOriginalExtension(),
+                ]);
             }
 
-            return response()->json(['message' => 'No se encontraron imágenes'], 400);
+            return response()->json(['message' => 'Imágenes actualizadas con éxito'], 200);
 
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             return response()->json([
                 'message' => 'Error al actualizar las imágenes',
-                'error'   => $e->getMessage()
+                'error'   => $e->getMessage(),
             ], 500);
         }
     }

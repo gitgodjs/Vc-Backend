@@ -916,6 +916,77 @@ class PublicacionesController extends Controller
         ], 200);
     }
 
+    public function getPublicacionesUser($user_id, $userProfile_id, $page) {
+        $limit = 20;
+        $userProfile = User::find($userProfile_id);
+
+        if (!$userProfile) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404); 
+        }
+
+        $user = User::find($user_id);
+
+        $offset = ($page - 1) * $limit;
+
+        $publicacionesUser = Publicacion::where("id_user", $userProfile_id)
+
+            ->skip($offset)
+
+            ->take($limit)
+
+            ->get();
+
+        Carbon::setLocale('es');
+
+        $publicaciones = $publicacionesUser->map(function ($publicacion) use ($user) {
+            $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
+            $prenda = Prendas::find($publicacion->prenda);
+            $categoria = RopaCategorias::find($publicacion->categoria);
+            $tipo = RopaTipo::find($publicacion->tipo);
+            $guardada = false;
+
+            if ($user) {
+                $guardada = PublicacionGuardada::where('id_publicacion', $publicacion->id)
+                    ->where('user_id', $user->id)
+                    ->exists();
+            };
+
+            return [
+                'id' => $publicacion->id,
+                'id_creador' => $publicacion->id_user,
+                'nombre' => $publicacion->nombre,
+                'descripcion' => $publicacion->descripcion,
+                'precio' => $publicacion->precio,
+                'imagenUrl' => $publicacion->imagen,
+                'estado_publicacion' => $publicacion->estado_publicacion,
+                'estado_ropa' => $estado_ropa->estado,
+                'categoria' => $categoria->category,
+                'prenda' => $prenda->prenda,
+                'talle' => $publicacion->talle,
+                'tipo' => $tipo->tipo,
+                'ubicacion' => $publicacion->ubicacion,
+                'fecha_publicacion' => Carbon::parse($publicacion->created_at)->diffForHumans(), 
+                'fecha_original' => $publicacion->created_at, 
+                'guardada' => $guardada,
+
+            ];
+        });
+
+        $publicaciones = $this->imageControll($publicaciones);
+        $publicacionesTotales = Publicacion::where("id_user", $userProfile_id)->count();
+        $hasMore = ($publicacionesTotales > $offset + $limit);
+
+        return response()->json([
+            'message' => 'Publicaciones obtenidas!',
+            'publicaciones' => $publicaciones,
+            'publicacionesTotales' => $publicacionesTotales,
+            'page' => $page,
+            'hasMore' => $hasMore
+        ], 200);
+    } 
+
     /////////////////////////////////
 
     public function impulsarPublicacion(Request $request, $publicacion_id) {

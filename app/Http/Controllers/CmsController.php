@@ -676,13 +676,7 @@ class CmsController extends Controller
         if (!$admin) {
             return response()->json(['message' => 'Usuario no autenticado'], 401);
         }
-    
-        /* 2. Validar parámetros */
-        $request->validate([
-            'user_id'     => 'required|integer|exists:users,id',
-            'reporte_id'  => 'nullable',              // puede ser int o array
-        ]);
-    
+
         /* 3. Usuario a eliminar */
         $usuario = User::find($request->user_id);
         if (!$usuario) {

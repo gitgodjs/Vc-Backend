@@ -253,11 +253,13 @@ class PublicacionesController extends Controller
         }
     
         // 👉 URLs absolutas de las imágenes de la publicación
-        $imagenesUrls = $publicacion->imagenes
-            ->sortBy('id')                                 // 👈 ordena por id ASC
-            ->map(fn ($img) => asset(Storage::disk('public')->url($img->url)))
+        $imagenesUrls = $publicacion->imagenes()       // relación hasMany
+            ->orderBy('id', 'asc')                     
+            ->get()
+            ->map(fn($img) => asset(Storage::disk('public')->url($img->url)))
             ->values()
-            ->all();
+            ->all();                                 
+    
     
         // 👉 Datos auxiliares de la prenda
         $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);

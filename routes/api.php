@@ -87,10 +87,10 @@ Route::prefix('publicaciones')->group(function () {
     Route::post('eliminarOferta', [PublicacionesController::class, 'eliminarOferta']);
     Route::post('impulsar/{publicacion_id}', [PublicacionesController::class, 'impulsarPublicacion']);
 
-    // Estadísticas
-    Route::get('estadisticas/getEstadisticas/{periodo}', [PublicacionesController::class, 'getEstadisticas']);
 });
 
+// Estadísticas
+Route::get('estadisticas/getEstadisticas/{periodo}', [PublicacionesController::class, 'getEstadisticas']);
 
 // --------------------- IMÁGENES PUBLICACIÓN ---------------------
 Route::prefix('publicacionImage')->group(function () {

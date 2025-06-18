@@ -182,12 +182,9 @@ class PublicacionesController extends Controller
     
         // 👉 Foto de perfil del dueño de la publicación
         $userPublicacion = User::with('imagenProfile')->find($publicacion->id_user);
-        $userPublicacion->imagen = $userPublicacion->imagenProfile
-            ? asset(Storage::disk('public')->url($userPublicacion->imagenProfile->url))
-            : null;
-    
+
         // 👉 ¿Es mi publicación?
-        $itsMe         = $user->id === $publicacion->id_user;
+        $itsMe = $user->id === $publicacion->id_user;
         $yaFueOfertada = false;
         $mensajeOferta = null;
         $mejoresOfertas = null;
@@ -204,13 +201,13 @@ class PublicacionesController extends Controller
     
             if ($conversacion) {
                 $oferta = PublicacionOferta::whereHas('mensaje', function ($q) use ($conversacion) {
-                                $q->where('conversation_id', $conversacion->id);
-                            })
-                            ->where('publicacion_id', $publicacion->id)
-                            ->whereNull('deleted_at')
-                            ->with('mensaje')
-                            ->latest()
-                            ->first();
+                        $q->where('conversation_id', $conversacion->id);
+                    })
+                    ->where('publicacion_id', $publicacion->id)
+                    ->whereNull('deleted_at')
+                    ->with('mensaje')
+                    ->latest()
+                    ->first();
     
                 if ($oferta && $oferta->estado_oferta_id != 3) {
                     $yaFueOfertada = true;
@@ -235,15 +232,15 @@ class PublicacionesController extends Controller
                     $promRate = $userOfer->opiniones()->avg('rate_general') ?? 0;
     
                     return [
-                        'id'              => $oferta->id,
-                        'user'            => [
+                        'id' => $oferta->id,
+                        'user' => [
                             'id'   => $userOfer->id,
                             'username' => $userOfer->username,
                             'foto_perfil_url' => $userOfer->getFotoPerfilUrl(),
                         ],
-                        'precio'          => $oferta->precio,
+                        'precio' => $oferta->precio,
                         'conversacion_id' => $oferta->mensaje->conversation->id ?? null,
-                        'promedio_rate'   => $promRate,
+                        'promedio_rate' => $promRate,
                     ];
                 })
                 ->sortByDesc('precio')
@@ -275,7 +272,10 @@ class PublicacionesController extends Controller
     
         Carbon::setLocale('es');
         $creador = User::find($publicacion->id_user);
-    
+        $creador->imagen = $creador->imagenProfile
+            ? asset(Storage::disk('public')->url($userPublicacion->imagenProfile->url))
+            : null;
+                
         $publicacionFormateada = [
             'id'                => $publicacion->id,
             'creador'           => $creador,

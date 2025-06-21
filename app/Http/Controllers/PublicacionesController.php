@@ -823,6 +823,10 @@ class PublicacionesController extends Controller
         $query = Publicacion::whereNull('deleted_at')
             ->where('id_user', '!=', $user->id)
             ->where('estado_publicacion', 1)
+            ->when(
+                $request->filled('publicacion_id'),
+                fn ($q) => $q->where('id', '!=', $request->publicacion_id)
+            )
             ->orderByDesc('fecha_impulso');
     
         $filters = $request->only(['categoria', 'talla', 'ciudad', 'prenda', 'search', 'estilo']);
@@ -913,7 +917,7 @@ class PublicacionesController extends Controller
             "mensaje" => "Publicaciones obtenidas",
             "publicaciones" => $publicacionesMapped,
             "hasMore" => $hasMore,
-            "publicacionesTotales" => $publicacionesTotales
+            "publicacionesTotales" => $publicacionesTotales,
         ], 200);
     }
 

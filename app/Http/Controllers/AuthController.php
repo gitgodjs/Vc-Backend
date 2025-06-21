@@ -76,12 +76,36 @@ class AuthController extends Controller
 
     protected function respondWithToken(string $token, int $status = 200)
     {
+        $minutes  = auth()->factory()->getTTL();           
+
+        $secure   = filter_var(env('COOKIE_SECURE', false), FILTER_VALIDATE_BOOLEAN);
+        $sameSite = env('COOKIE_SAMESITE', 'Lax');          
+    
+        if ($sameSite === 'None' && !$secure) {
+            $sameSite = 'Lax';                              
+        };  
+
+        $domain = env('COOKIE_DOMAIN', null);
+
         return response()->json([
             'access_token' => $token,
             'token_type'   => 'bearer',
-            'expires_in'   => auth()->factory()->getTTL() * 60,
-        ], $status);
-    }    
+            'expires_in'   => $minutes * 60,
+        ], $status)->withCookie(
+            cookie(
+                'access_token',
+                $token,
+                $minutes,
+                '/',   
+                $domain,        
+                $secure,
+                true,      
+                false,
+                $sameSite
+            )
+        );
+    }
+ 
 
     public function get_credentials_from_token()
     {
@@ -135,32 +159,43 @@ class AuthController extends Controller
     public function callback($provider)
     {
         $socialUser = Socialite::driver($provider)->stateless()->user();
-    
+
         $user = User::firstOrCreate(
             ['correo' => $socialUser->getEmail()],
             [
-                'password'         => bcrypt(Str::random(40)),
-                'nombre'           => $socialUser->getName(),
-                'username'         => Str::slug($socialUser->getName()),
-                'email_verified_at'=> now(),
-                'red_social'       => $provider,
+                'password'          => bcrypt(Str::random(40)),
+                'nombre'            => $socialUser->getName(),
+                'username'          => Str::slug($socialUser->getName()),
+                'email_verified_at' => now(),
+                'red_social'        => $provider,
             ]
         );
-    
-        $token   = auth('api')->login($user);
-        $minutes = auth('api')->factory()->getTTL();  
-    
+
+        $token   = auth()->login($user);                
+        $minutes = auth()->factory()->getTTL();      
+
+        $secure   = filter_var(env('COOKIE_SECURE', false), FILTER_VALIDATE_BOOLEAN);
+        $sameSite = env('COOKIE_SAMESITE', 'Lax');
+        if ($sameSite === 'None' && !$secure) {
+            $sameSite = 'Lax';
+        }
+        
+        $domain = env('COOKIE_DOMAIN', null);
+
         $cookie = cookie(
-            'access_token', $token, $minutes,
-            '/', '.vintageclothesarg.com',
-            true,  // secure
-            true,  // http‑only
-            false,
-            'Lax'
+            'access_token',
+            $token,
+            $minutes,      
+            '/',       
+            $domain,
+            $secure,
+            true,          
+            false,    
+            $sameSite
         );
-    
+
         return redirect()
-            ->away(env('FRONTEND_URL') . '/?googleSession=1')
+            ->away(env('FRONTEND_URL', 'http://localhost:3000') . '/?googleSession=1')
             ->withCookie($cookie);
     }
 
@@ -173,7 +208,7 @@ class AuthController extends Controller
 
         try {
             $payload = JWTAuth::setToken($token)->getPayload();
-            $user    = JWTAuth::authenticate($token);
+            $user = JWTAuth::authenticate($token);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Token invalid'], 401);
         }
@@ -184,8 +219,21 @@ class AuthController extends Controller
             'access_token' => $token,
             'expires_in'   => $expiresIn,
             'user'         => $user,
-        ])->withCookie(
-            cookie()->forget('access_token', '/', '.vintageclothesarg.com')
+        ]);
+    }
+
+    public function logout()
+    {
+        auth()->logout();
+
+        return response()->json(['message' => 'logout ok'], 200)
+        ->withCookie(                       
+            cookie()->forget(
+                'access_token',
+                '/',
+                env('COOKIE_DOMAIN', null)  
+            )
         );
     }
+
 }

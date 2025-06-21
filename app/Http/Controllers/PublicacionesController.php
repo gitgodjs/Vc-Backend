@@ -180,16 +180,13 @@ class PublicacionesController extends Controller
             return response()->json(['mensaje' => 'Usuario no encontrado', 'code' => 404], 404);
         }
     
-        // 👉 Foto de perfil del dueño de la publicación
         $userPublicacion = User::with('imagenProfile')->find($publicacion->id_user);
 
-        // 👉 ¿Es mi publicación?
         $itsMe = $user->id === $publicacion->id_user;
         $yaFueOfertada = false;
         $mensajeOferta = null;
         $mejoresOfertas = null;
     
-        // 👉 Lógica de ofertas (sólo si NO soy el dueño)
         if (!$itsMe) {
             $conversacion = ChatConversacion::where(function ($q) use ($user, $publicacion) {
                 $q->where('emisor_id', $user->id)
@@ -710,35 +707,36 @@ class PublicacionesController extends Controller
     public function getPublicacionesEnVenta($page) {
         $limit = 20;
         $user = auth()->user();
-
+    
         if (!$user) {
             return response()->json([
                 "mensaje" => "Usuario no encontrado!"
             ], 404); 
         }
-
+    
         $offset = ($page - 1) * $limit;
-
-        // Paginadas
+    
         $publicaciones = PublicacionVenta::where("id_vendedor", $user->id)
             ->where("estado_venta", 1)
             ->skip($offset)
             ->take($limit)
             ->get();
-
+    
         Carbon::setLocale('es');
-
+    
         $publicacionesFormateadas = $publicaciones->map(function ($publicacionVenta) use ($user) {  
             $compradorPublicacion = User::find($publicacionVenta->id_comprador);
             $publicacion = Publicacion::find($publicacionVenta->id_publicacion);
-            if($publicacion->imagen != null) {$publicacion->imagenUrl = $publicacion->imagen;}
-
+            if($publicacion->imagen != null) {
+                $publicacion->imagenUrl = $publicacion->imagen;
+            }
+    
             $oferta = PublicacionOferta::find($publicacionVenta->oferta_id);
             if (!$oferta) return null;
-
+    
             $mensajeInicial = ChatMensaje::find($oferta->mensaje_id);
             if (!$mensajeInicial) return null;
-
+    
             return [
                 'id' => $publicacionVenta->id,
                 'id_creador_publicacion' => $publicacion->id_user,
@@ -750,18 +748,21 @@ class PublicacionesController extends Controller
                 'conversacion_id' => $mensajeInicial->conversation_id,
             ];
         })->filter(); 
-
+    
         $publicacionesTotales = Publicacion::where("id_user", $user->id)->count();
         $hasMore = ($publicacionesTotales > $offset + $limit);
-
+    
+        // Aplicamos el formateo para traer la URL completa
+        $publicacionesFinales = $this->imageControll($publicacionesFormateadas);
+    
         return response()->json([
             'message' => 'Publicaciones obtenidas!',
-            'publicaciones' => $publicacionesFormateadas->values(), 
+            'publicaciones' => $publicacionesFinales->values(), // <-- acá está la clave
             'publicacionesTotales' => $publicacionesTotales,
             'page' => $page,
             'hasMore' => $hasMore,
         ], 200);
-    }
+    }    
 
     public function getPublicacionesGuardadas(Request $request, $user_id, $page) {
         $user = auth()->user();

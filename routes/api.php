@@ -10,10 +10,10 @@ use App\Http\Controllers\{
 // --------------------- AUTENTICACIÓN ---------------------
 Route::post('register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
+Route::post('logout', [AuthController::class, 'logout']);
 Route::get('/auth/{provider}/redirect', [AuthController::class, 'redirect']);
 Route::get('/auth/{provider}/callback', [AuthController::class, 'callback']);
 Route::get('auth/extract-jwt', [AuthController::class, 'extract_jwt']);
-
 Route::middleware('auth:api')->group(function () {
   Route::get('get_credentials_from_token', [AuthController::class, 'get_credentials_from_token']);
 });
@@ -27,7 +27,7 @@ Route::post('user/getUsers/{page}', [UserController::class, 'getUsers']);
 Route::post('user/borrarCuenta/{user_id}', [UserController::class, 'borrarCuenta']);
 
 // Protegidos
-Route::middleware('auth:api')->prefix('user')->group(function () {
+Route::middleware('jwt.auth')->prefix('user')->group(function () {
     Route::get('crearCodigoVerificacion/{correo}', [UserController::class, 'crearCodigoVerficacion']);
     Route::post('verificarCodigo/{correo}/{codigo}', [UserController::class, 'verficarCodigo']);
     Route::get('obtenerUserToken', [UserController::class, 'obtenerUserToken']);
@@ -46,7 +46,7 @@ Route::get('user/obtenerInformacion/{correo_user}', [UserController::class, 'obt
 Route::get('user/obtenerDescDeVc/{correo_user}', [UserController::class, 'obtenerDescDeVc']);
 
 // --------------------- NOTIFICACIONES ---------------------
-Route::middleware('auth:api')->get('notificaciones/obtener', [UserController::class, 'obtenerNotificaciones']);
+Route::middleware('jwt.auth')->get('notificaciones/obtener', [UserController::class, 'obtenerNotificaciones']);
 
 
 // --------------------- IMÁGENES USUARIOS ---------------------
@@ -102,7 +102,7 @@ Route::prefix('publicacionImage')->group(function () {
 
 
 // --------------------- CHAT ---------------------
-Route::middleware('auth:api')->group(function () {
+Route::middleware('jwt.auth')->group(function () {
   Route::get('chat/obtenerChats', [ChatController::class, 'obtenerChats']);
   Route::get('chat/obtenerConversation/{conversation_id}', [ChatController::class, 'obtenerConversation']);
   Route::post('chat/ofertar', [ChatController::class, 'ofertar']);
@@ -111,7 +111,7 @@ Route::middleware('auth:api')->group(function () {
 });
 
 // --------------------- PLANES ---------------------
-Route::middleware('auth:api')->prefix('planes')->group(function () {
+Route::middleware('jwt.auth')->prefix('planes')->group(function () {
     Route::get('obtenerPlanes', [PlanesController::class, 'obtenerPlanes']);
     Route::get('obtenerPlanActual', [PlanesController::class, 'obtenerPlanActual']);
     Route::post('cancelarPlan', [PlanesController::class, 'cancelarPlan']);
@@ -119,14 +119,14 @@ Route::middleware('auth:api')->prefix('planes')->group(function () {
 
 
 // --------------------- MERCADO PAGO ---------------------
-Route::middleware('auth:api')->prefix('mercadopago')->group(function () {
+Route::middleware('jwt.auth')->prefix('mercadopago')->group(function () {
     Route::post('create', [MercadoPagoController::class, 'createPreference']);
     Route::post('confirm', [MercadoPagoController::class, 'confirmTransaction']);
 });
 
 
 // --------------------- CMS ---------------------
-Route::middleware('auth:api')->prefix('cms')->group(function () {
+Route::middleware('jwt.auth')->prefix('cms')->group(function () {
     Route::get('getGeneralData', [CmsController::class, 'getGeneralData']);
     Route::get('getNuevosUsuarios', [CmsController::class, 'getNuevosUsuarios']);
     Route::get('getGanancias', [CmsController::class, 'getGanancias']);
@@ -147,7 +147,7 @@ Route::middleware('auth:api')->prefix('cms')->group(function () {
 });
 
 // --------------------- NOTIFICACIONES ACCIONES ---------------------
-Route::middleware('auth:api')->prefix('notificacion')->group(function () {
+Route::middleware('jwt.auth')->prefix('notificacion')->group(function () {
     Route::post('recibiste-oferta', [NotificacionesController::class, 'recibisteOferta']);
     Route::post('aceptaste-oferta', [NotificacionesController::class, 'AceptasteOferta']);
     Route::post('oferta-aceptada', [NotificacionesController::class, 'OfertaAceptada']);

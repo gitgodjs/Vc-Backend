@@ -105,51 +105,6 @@ class AuthController extends Controller
             )
         );
     }
- 
-
-    public function get_credentials_from_token()
-    {
-        $user = auth()->user();
-        if (!$user) {
-            return response()->json(["mensaje" => "Error al obtener el token"], 400);
-        }
-
-        $ventaParaReseñar = PublicacionVenta::where('id_comprador', $user->id)
-            ->where('estado_venta', 2)
-            ->orderBy('created_at', 'asc')
-            ->first();
-
-        
-        $paraReseña = null;
-
-        Carbon::setLocale('es');
-        if ($ventaParaReseñar) {
-            $oferta = PublicacionOferta::find($ventaParaReseñar->oferta_id);
-            $conversation_id = ChatMensaje::find($oferta->mensaje_id)->conversation_id;
-
-            $publicacion = Publicacion::find($ventaParaReseñar->id_publicacion);
-            $vendedor = User::find($publicacion->id_user);
-
-            if ($publicacion) {
-                $paraReseña = [
-                    'id' => $publicacion->id,
-                    'nombre' => $publicacion->nombre,
-                    'descripcion' => $publicacion->descripcion,
-                    'precio' => $publicacion->precio,
-                    'imagen' => $publicacion->imagen,
-                    'fecha_venta' => $ventaParaReseñar->updated_at->diffForHumans(),
-                    'id_venta' => $ventaParaReseñar->id,
-                    'vendedor' => $vendedor,
-                    'conversation_id' => $conversation_id
-                ];
-            }
-        }
-
-        return response()->json([
-            "user" => $user,
-            "paraReseña" => $paraReseña
-        ], 200);
-    }
 
     public function redirect($provider)
     {
@@ -199,26 +154,62 @@ class AuthController extends Controller
             ->withCookie($cookie);
     }
 
+    // AuthController.php
+    private function buildParaResena($user)
+    {
+        $venta = PublicacionVenta::where('id_comprador', $user->id)
+            ->where('estado_venta', 2)
+            ->orderBy('created_at', 'asc')
+            ->first();
+
+        if (!$venta) {
+            return null;
+        }
+
+        $oferta  = PublicacionOferta::find($venta->oferta_id);
+        $mensaje = ChatMensaje::find($oferta?->mensaje_id);
+        $pub     = Publicacion::find($venta->id_publicacion);
+        $vendedor= User::find($pub?->id_user);
+
+        if (!$pub) {
+            return null;
+        }
+
+        return [
+            'id'             => $pub->id,
+            'nombre'         => $pub->nombre,
+            'descripcion'    => $pub->descripcion,
+            'precio'         => $pub->precio,
+            'imagen'         => $pub->imagen,
+            'fecha_venta'    => $venta->updated_at->diffForHumans(),
+            'id_venta'       => $venta->id,
+            'vendedor'       => $vendedor,
+            'conversation_id'=> $mensaje?->conversation_id,
+        ];
+    }
+
     public function extract_jwt(Request $request)
     {
         $token = $request->cookie('access_token');
         if (!$token) {
             return response()->json(['error' => 'Cookie missing'], 401);
         }
-
+    
         try {
             $payload = JWTAuth::setToken($token)->getPayload();
-            $user = JWTAuth::authenticate($token);
+            $user    = JWTAuth::authenticate($token);
         } catch (\Exception $e) {
             return response()->json(['error' => 'Token invalid'], 401);
         }
-
-        $expiresIn   = $payload['exp'] - time();  // segundos restantes
-
+    
+        $expiresIn  = $payload['exp'] - time();
+        $paraReseña = $this->buildParaResena($user);   // ← nuevo
+    
         return response()->json([
             'access_token' => $token,
             'expires_in'   => $expiresIn,
             'user'         => $user,
+            'paraReseña'   => $paraReseña,             // ← incluido
         ]);
     }
 

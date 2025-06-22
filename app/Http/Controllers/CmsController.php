@@ -683,13 +683,9 @@ class CmsController extends Controller
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
     
-        /* 4. Marcar uno o varios reportes como resueltos */
-        if ($request->filled('reporte_id')) {
-            $ids = is_array($request->reporte_id)
-                 ? $request->reporte_id          // array de IDs
-                 : [$request->reporte_id];       // ID único en array
-    
-            ReporteUsuario::whereIn('id', $ids)->update(['estado' => 'resuelto']);
+        $reporte = ReporteUsuario::find($request->reporte_id)->update(['estado' => 'resuelto']);
+        if (!$reporte) {
+            return response()->json(['message' => 'Reporte no encontrado'], 404);
         }
     
         /* 5. Eliminar usuario */
@@ -699,7 +695,7 @@ class CmsController extends Controller
             'mensaje' => 'Usuario eliminado con éxito',
             'usuario' => $usuario,
         ], 200);
-    }     
+    }    
 
     public function verificarUsuario(Request $request) {
         $admin = auth()->user(); // admin autenticado

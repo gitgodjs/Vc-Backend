@@ -64,14 +64,19 @@ class AuthController extends Controller
 
     public function login(Request $request)
     {
-        $credentials = $request->only('correo', 'password');
-        $token = auth()->attempt($credentials);
-    
-        if (!$token = JWTAuth::attempt($credentials)) {
+        $credentials = [
+            'correo' => $request->input('correo'),
+            'password' => $request->input('password')
+        ];
+
+        $customClaims = ['correo' => $credentials['correo']];
+        $token = JWTAuth::attempt($credentials);
+
+        if (!$token) {
             return response()->json(['error' => 'Unauthorized', "cred"=>$credentials], 401);
         }
-    
-        return $this->respondWithToken($token, 201);    
+
+        return $this->respondWithToken($token, 201);
     }
 
     protected function respondWithToken(string $token, int $status = 200)

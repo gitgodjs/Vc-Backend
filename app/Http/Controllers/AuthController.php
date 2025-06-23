@@ -120,7 +120,6 @@ class AuthController extends Controller
             [
                 'password'          => bcrypt(Str::random(40)),
                 'nombre'            => $socialUser->getName(),
-                'username'          => Str::slug($socialUser->getName()),
                 'email_verified_at' => now(),
                 'red_social'        => $provider,
             ]

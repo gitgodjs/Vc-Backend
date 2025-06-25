@@ -74,6 +74,7 @@ Route::prefix('publicaciones')->group(function () {
     Route::get('getPublicacionesGuardadasProfile/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
     Route::get('getPublicacionesEnVenta/{page}', [PublicacionesController::class, 'getPublicacionesEnVenta']);
     Route::get('getPublicacionesEnCompra/{page}', [PublicacionesController::class, 'getPublicacionesEnCompra']);
+    Route::get('getPublicacionesCompradas/{page}', [PublicacionesController::class, 'getPublicacionesCompradas']);
 
     // Buscador
     Route::post('getPublicacionesFiltro', [PublicacionesController::class, 'getPublicacionesFiltro']);

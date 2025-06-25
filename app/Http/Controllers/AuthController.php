@@ -126,7 +126,6 @@ class AuthController extends Controller
                 'password'          => bcrypt(Str::random(40)),
                 'nombre'            => $socialUser->getName(),
                 'email_verified_at' => now(),
-                'red_social'        => $provider,
             ]
         );
 
@@ -169,6 +168,8 @@ class AuthController extends Controller
         if (!$venta) {
             return null;
         }
+
+        Carbon::setLocale('es');
 
         $oferta  = PublicacionOferta::find($venta->oferta_id);
         $mensaje = ChatMensaje::find($oferta?->mensaje_id);

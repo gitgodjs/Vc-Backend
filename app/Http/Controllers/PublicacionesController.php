@@ -378,7 +378,7 @@ class PublicacionesController extends Controller
         ], 200);
     }
     
-    public function getPublicacionesEnCompra($page) {
+    public function getPublicacionesCompradas($page) {
         $limit = 20;
         $user = auth()->user();
     
@@ -391,6 +391,7 @@ class PublicacionesController extends Controller
         $offset = ($page - 1) * $limit;
     
         $publicacionesIds = PublicacionVenta::where("id_comprador", $user->id)
+            ->where("estado_venta", 3)
             ->select('id_publicacion')
             ->distinct()
             ->skip($offset)
@@ -426,6 +427,67 @@ class PublicacionesController extends Controller
             'publicacionesTotales' => $publicacionesTotales,
             'page' => $page,
             'hasMore' => $hasMore
+        ], 200);
+    }
+
+    public function getPublicacionesEnCompra($page) {
+        $limit = 20;
+        $user = auth()->user();
+    
+        if (!$user) {
+            return response()->json([
+                "mensaje" => "Usuario no encontrado!"
+            ], 404); 
+        }
+
+        $offset = ($page - 1) * $limit;
+    
+        $publicaciones = PublicacionVenta::where("id_comprador", $user->id)
+            ->where("estado_venta", "!=", 3)
+            ->skip($offset)
+            ->take($limit)
+            ->get();
+
+        Carbon::setLocale('es');
+        
+        $publicacionesFormateadas = $publicaciones->map(function ($publicacionVenta) use ($user) {  
+            $vendedorPublicacion = User::find($publicacionVenta->id_vendedor);
+            $publicacion = Publicacion::find($publicacionVenta->id_publicacion);
+            if($publicacion->imagen != null) {
+                $publicacion->imagenUrl = $publicacion->imagen;
+            }
+    
+            $oferta = PublicacionOferta::find($publicacionVenta->oferta_id);
+            if (!$oferta) return null;
+    
+            $mensajeInicial = ChatMensaje::find($oferta->mensaje_id);
+            if (!$mensajeInicial) return null;
+    
+            return [
+                'id' => $publicacionVenta->id,
+                'id_creador_publicacion' => $publicacion->id_user,
+                'precio' => $publicacionVenta->precio,
+                'imagenUrl' => $publicacion->imagenUrl,
+                'estado_venta' => $publicacionVenta->estado_venta,
+                'publicacionOriginal' => $publicacion,
+                'vendedor' => $vendedorPublicacion,
+                'fecha_venta' => $publicacionVenta->updated_at->diffForHumans(),
+                'conversation_id' => $mensajeInicial->conversation_id,
+            ];
+        })->filter(); 
+    
+        $publicacionesTotales = Publicacion::where("id_user", $user->id)->count();
+        $hasMore = ($publicacionesTotales > $offset + $limit);
+    
+        // Aplicamos el formateo para traer la URL completa
+        $publicacionesFinales = $this->imageControll($publicacionesFormateadas);
+    
+        return response()->json([
+            'message' => 'Publicaciones obtenidas!',
+            'publicaciones' => $publicacionesFinales->values(), // <-- acá está la clave
+            'publicacionesTotales' => $publicacionesTotales,
+            'page' => $page,
+            'hasMore' => $hasMore,
         ], 200);
     }
     

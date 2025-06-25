@@ -237,6 +237,8 @@ class UserController extends Controller
             ], 404);
         };
 
+        $estilos = UserEstilos::where("id_user", $user->id)->first();
+
         if($user->tallas != null) {
             $tallas = $user->tallas->prendas;
         } else {
@@ -255,6 +257,7 @@ class UserController extends Controller
 
         return response()->json([
             'tallas' => $tallas,
+            'estilos' => $estilos ?? null,
             'code' => 200
         ], 200);
     }

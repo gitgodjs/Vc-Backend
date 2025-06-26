@@ -998,11 +998,9 @@ class PublicacionesController extends Controller
         $offset = ($page - 1) * $limit;
 
         $publicacionesUser = Publicacion::where("id_user", $userProfile_id)
-
+            ->where("estado_publicacion", 1)
             ->skip($offset)
-
             ->take($limit)
-
             ->get();
 
         Carbon::setLocale('es');

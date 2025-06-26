@@ -51,9 +51,9 @@ class MercadoPagoController extends Controller
                     "monto" => (float) $plan->precio,
                 ],
                 "back_urls" => [
-                    "success" => "https://vintageclothesarg.com/mercadopago/success",
-                    "failure" => "https://vintageclothesarg.com/mercadopago/failure",
-                    "pending" => "https://vintageclothesarg.com/mercadopago/pending",
+                    "success" => "https://vintageclothesarg.com",
+                    "failure" => "https://vintageclothesarg.com",
+                    "pending" => "https://vintageclothesarg.com",
                 ],
                 "auto_return" => "approved"
             ]);

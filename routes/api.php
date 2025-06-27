@@ -8,7 +8,7 @@ use App\Http\Controllers\{
 };
 
 // --------------------- AUTENTICACIÓN ---------------------
-Route::post('register', [AuthController::class, 'register']);
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('login', [AuthController::class, 'login']);
 Route::post('logout', [AuthController::class, 'logout']);
 

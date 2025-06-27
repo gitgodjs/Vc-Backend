@@ -88,10 +88,25 @@ class MercadoPagoController extends Controller
             // Consultar el pago por su ID
             $payment = $client->get($request->input('payment_id'));
     
+            $userId = $request->input('metadata.user_id');
+            $planId = $request->input('metadata.plan_id');
+            $monto  = $request->input('metadata.pago');
+
+            if (!$userId || !$planId) {
+                return response()->json(['error' => 'Faltan datos en metadata'], 422);
+            };
+
             // Acceder a los metadatos
             $userId = $payment->metadata->user_id;
             $planId = $payment->metadata->plan_id;
             $monto = $payment->metadata->pago;
+
+            logger()->info('Confirmación MP', ['payment' => $payment]);
+
+            $metadata = $payment->metadata ?? null;
+            if (!$metadata || !isset($metadata->user_id, $metadata->plan_id, $metadata->pago)) {
+                return response()->json(['error' => 'Metadata incompleta'], 422);
+            }
     
             // Guardar el comprobante en la base de datos
             MercadoPagoComprobante::create([
@@ -143,7 +158,7 @@ class MercadoPagoController extends Controller
 
             return response()->json(['message' => 'Comprobante registrado correctamente', "plan" => $plan], 200);
         } catch (\Exception $e) {
-            logger()->error('Error al guardar comprobante MP', ['error' => $e->getMessage()]);
+            logger()->error('MP confirmTransaction error: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return response()->json(['error' => 'Error al guardar el comprobante'], 500);
         }
     }

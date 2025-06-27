@@ -101,14 +101,7 @@ class MercadoPagoController extends Controller
             if (!$userId || !$planId) {
                 return response()->json(['error' => 'Faltan datos en metadata'], 422);
             }
-
-            logger()->info('Confirmación MP', ['payment' => $payment]);
-
-            $metadata = $payment->metadata ?? null;
-            if (!$metadata || !isset($metadata->user_id, $metadata->plan_id, $metadata->pago)) {
-                return response()->json(['error' => 'Metadata incompleta'], 422);
-            }
-
+            
             // Guardar el comprobante en la base de datos
             MercadoPagoComprobante::create([
                 'user_id' => $userId,

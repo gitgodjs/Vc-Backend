@@ -102,10 +102,6 @@ class MercadoPagoController extends Controller
                 return response()->json(['error' => 'Faltan datos en metadata'], 422);
             }
 
-            // Acceder a los metadatos
-            $planId = $payment->metadata->plan_id;
-            $monto = $payment->metadata->pago;
-
             logger()->info('Confirmación MP', ['payment' => $payment]);
 
             $metadata = $payment->metadata ?? null;

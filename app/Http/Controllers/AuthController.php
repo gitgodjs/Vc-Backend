@@ -27,8 +27,7 @@ class AuthController extends Controller
     public function register(Request $request)
     {
         try {
-            $existe = User::where("correo", $request->correo)->exists();
-
+            $existe = User::withTrashed()->where('correo', $request->correo)->first();
             if (!$existe) {
                 $user = User::create([
                     'correo'   => $request->correo,
@@ -51,7 +50,7 @@ class AuthController extends Controller
                     'ruta_destino' => "/perfil/{$user->correo}",
                 ]);
             } else {
-                return response()->json(['message' => 'El correo ya está en uso'], 409);
+                return response()->json(['message' => 'El correo ya está en uso'], 404);
             }
         } catch (QueryException $e) {
             return response()->json(['message' => $e], 422);
@@ -70,6 +69,13 @@ class AuthController extends Controller
         ];
 
         $customClaims = ['correo' => $credentials['correo']];
+
+        $existingUser = User::withTrashed()->where('correo', $credentials['correo'])->first();
+
+        if ($existingUser && $existingUser->trashed()) {
+            return response()->json(['error' => 'Usuario borrado!', "cred"=>$credentials], 404);
+        }
+
         $token = JWTAuth::attempt($credentials);
 
         if (!$token) {
@@ -119,6 +125,12 @@ class AuthController extends Controller
     public function callback($provider)
     {
         $socialUser = Socialite::driver($provider)->stateless()->user();
+
+        $existingUser = User::withTrashed()->where('correo', $socialUser->getEmail())->first();
+
+        if ($existingUser && $existingUser->trashed()) {
+            return redirect()->away(env('FRONTEND_URL', 'http://localhost:3000') . '/?deleted_user=deleted');
+        }
 
         $user = User::firstOrCreate(
             ['correo' => $socialUser->getEmail()],

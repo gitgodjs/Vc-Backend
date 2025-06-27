@@ -19,8 +19,8 @@ use App\Models\MercadoPagoComprobante;
 class MercadoPagoController extends Controller
 {
     public function createPreference(Request $request)
-    {   
-        $user = auth()->user();
+    {
+     	$user = auth()->user();
         if(!$user) {
             return response()->json([
                 "mensaje" => "Este usuario no existe",
@@ -28,17 +28,17 @@ class MercadoPagoController extends Controller
             ], 404);
         };
 
-        try {
+	try {
             MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
 
             $client = new PreferenceClient();
 
             $plan = Plan::find($request->plan);
-            
+
             $preference = $client->create([
                 "items" => [
                     [
-                        "id" => $plan->id,
+                     	"id" => $plan->id,
                         "title" => "Compra del plan: " . $plan->titulo,
                         "description" => $plan->descripcion,
                         "quantity" => 1,
@@ -57,18 +57,18 @@ class MercadoPagoController extends Controller
                 ],
                 "auto_return" => "approved"
             ]);
-        
+
             return response()->json(['init_point' => $preference->init_point]);
-        
+
         } catch (MPApiException $e) {
             $response = $e->getApiResponse(); // este es un MPHttpResponse
-        
+
             logger()->error('Error al crear preferencia Mercado Pago', [
                 'message' => $e->getMessage(),
                 'status' => $response->getStatusCode(),
                 'body' => $response->getContent()
             ]);
-        
+
             return response()->json([
                 'error' => 'Error al crear preferencia',
                 'details' => $response->getContent()
@@ -78,20 +78,20 @@ class MercadoPagoController extends Controller
 
     public function confirmTransaction(Request $request)
     {
-        $user = auth()->user();
+     	$user = auth()->user();
         if(!$user) {
             return response()->json([
                 "mensaje" => "Este usuario no existe",
                 "code" => 404,
             ], 404);
         };
-        try {
+	try {
             // Configurar el token de acceso
             MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
-    
+
             // Crear una instancia del cliente de pagos
             $client = new PaymentClient();
-    
+
             $payment = $client->get($request->input('payment_id'));
 
             $userId = $user->id;
@@ -112,7 +112,7 @@ class MercadoPagoController extends Controller
             if (!$metadata || !isset($metadata->user_id, $metadata->plan_id, $metadata->pago)) {
                 return response()->json(['error' => 'Metadata incompleta'], 422);
             }
-    
+
             // Guardar el comprobante en la base de datos
             MercadoPagoComprobante::create([
                 'user_id' => $userId,
@@ -131,11 +131,10 @@ class MercadoPagoController extends Controller
                 'merchant_account_id' => $request->input('merchant_account_id'),
                 'created_at' => now(),
             ]);
-    
             $plan = Plan::findOrFail($planId);
 
             $fechaCompra = now();
-            $fechaVencimiento = now()->addMonth(); 
+            $fechaVencimiento = now()->addMonth();
 
             $userPlan = UserPlan::where('user_id', $userId)->first();
 

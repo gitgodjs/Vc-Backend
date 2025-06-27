@@ -78,6 +78,13 @@ class MercadoPagoController extends Controller
 
     public function confirmTransaction(Request $request)
     {
+        $user = auth()->user();
+        if(!$user) {
+            return response()->json([
+                "mensaje" => "Este usuario no existe",
+                "code" => 404,
+            ], 404);
+        };
         try {
             // Configurar el token de acceso
             MercadoPagoConfig::setAccessToken(env('MP_ACCESS_TOKEN'));
@@ -85,19 +92,17 @@ class MercadoPagoController extends Controller
             // Crear una instancia del cliente de pagos
             $client = new PaymentClient();
     
-            // Consultar el pago por su ID
             $payment = $client->get($request->input('payment_id'));
-    
-            $userId = $request->input('metadata.user_id');
-            $planId = $request->input('metadata.plan_id');
-            $monto  = $request->input('metadata.pago');
+
+            $userId = $user->id;
+            $planId = $payment->metadata->plan_id ?? null;
+            $monto = $payment->metadata->monto ?? null;
 
             if (!$userId || !$planId) {
                 return response()->json(['error' => 'Faltan datos en metadata'], 422);
-            };
+            }
 
             // Acceder a los metadatos
-            $userId = $payment->metadata->user_id;
             $planId = $payment->metadata->plan_id;
             $monto = $payment->metadata->pago;
 

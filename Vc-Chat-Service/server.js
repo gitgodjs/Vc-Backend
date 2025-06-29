@@ -1,55 +1,82 @@
-require('dotenv').config({path:'./.env'});
-const express = require('express');
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-const mysql = require('mysql2/promise');
-const cors = require('cors');
+require("dotenv").config({ path: "./.env" });
 
-// Redis para guardar users conectados en tiempo real
-const { createClient } = require('redis');
-const redisClient = createClient({ url: 'redis://redis:6379' });
+const express = require("express");
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+const mysql = require("mysql2/promise");
+const cors = require("cors");
+const { createClient } = require("redis");
 
-// Configuración básica
-const restApp = express();
-const REST_PORT = 3001;
-const restServer = createServer(restApp);
+// CONFIG
+const REST_PORT = process.env.PORT || 6001;
+const ALLOWED_ORIGIN = process.env.ALLOWED_ORIGIN || "https://vintageclothesarg.com";
+const REDIS_URL = process.env.REDIS_URL || "redis://127.0.0.1:6379";
 
-// Para redis!s
-(async () => {
-  await redisClient.connect();
-  console.log('✅ Redis conectado para manejo de usuarios online');
-})();
+// APP y SERVIDOR
+const app = express();
+const httpServer = createServer(app);
 
-// Configuración CORS
-restApp.use(cors({
-  origin: ["http://localhost:3000", "https://vintageclothesarg.com", "https://dev.vintageclothesarg.com"],
+app.use(cors({
+  origin: ALLOWED_ORIGIN,
   methods: ["GET", "POST"],
-  credentials: true
+  credentials: true,
 }));
 
-// Middleware para parsear JSON
-restApp.use(express.json());
+app.use(express.json());
 
-// Conexión a la base de datos
+// MySQL Pool
 const db = mysql.createPool({
-  host: process.env.DB_HOST || 'vc-backend-mysql-1',
-  port: process.env.DB_PORT || 3306,
-  user: process.env.DB_USERNAME || 'vclothes',
-  password: process.env.DB_PASSWORD || 'vintageClothes2025',
-  database: process.env.DB_DATABASE || 'Vc',
+  host: process.env.CHAT_DB_HOST || "127.0.0.1",
+  port: process.env.CHAT_DB_PORT || 3306,
+  user: process.env.CHAT_DB_USERNAME || "root",
+  password: process.env.CHAT_DB_PASSWORD || "",
+  database: process.env.CHAT_DB_DATABASE || "Vc",
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
 });
 
-// ==============================================
-// ENDPOINTS (DEBEN IR ANTES DE LOS MIDDLEWARES DE ERROR)
-// ==============================================
+const IMAGE_BASE_URL = process.env.IMAGE_BASE_URL || "http://localhost:8080/storage";
+
+// Redis Client
+const redisClient = createClient({ url: REDIS_URL });
+(async () => {
+  try {
+    await redisClient.connect();
+    console.log("✅ Redis conectado para manejo de usuarios online");
+  } catch (err) {
+    console.error("❌ Error conectando a Redis:", err);
+  }
+})();
+
+// Socket.io
+const io = new Server(httpServer, {
+  cors: {
+    origin: ALLOWED_ORIGIN,
+    methods: ["GET", "POST"],
+    credentials: true,
+  },
+  transports: ['websocket', 'polling']
+});
+
+// Función para formatear mensajes
+function formatMessage(message) {
+  return {
+    id: message.id,
+    conversation_id: message.conversation_id,
+    emisor_id: message.emisor_id,
+    content: message.content,
+    created_at: message.created_at,
+    emisor_nombre: message.emisor_nombre
+  };
+}
+
+/* ======= ENDPOINTS REST ======= */
 
 // Endpoint de diagnóstico para ver rutas disponibles
-restApp.get('/api/routes', (req, res) => {
+app.get('/api/routes', (req, res) => {
   const routes = [];
-  restApp._router.stack.forEach((middleware) => {
+  app._router.stack.forEach((middleware) => {
     if (middleware.route) {
       routes.push({
         path: middleware.route.path,
@@ -61,7 +88,7 @@ restApp.get('/api/routes', (req, res) => {
 });
 
 // Endpoint de verificación básica
-restApp.get('/api/connection-check', (req, res) => {
+app.get('/api/connection-check', (req, res) => {
   res.json({
     status: '¡Conexión REST exitosa!',
     time: new Date().toISOString()
@@ -69,7 +96,7 @@ restApp.get('/api/connection-check', (req, res) => {
 });
 
 // Endpoint corregido para conversaciones (CON LA "S")
-restApp.get('/api/chat/conversations/:user_id', async (req, res) => {
+app.get('/api/chat/conversations/:user_id', async (req, res) => {
   try {
     const userId = parseInt(req.params.user_id);
     
@@ -151,11 +178,11 @@ restApp.get('/api/chat/conversations/:user_id', async (req, res) => {
     // Función para formatear la fecha
     const formatTimeAgo = (dateString) => {
       if (!dateString) return null;
-      
+
       const date = new Date(dateString);
       const now = new Date();
       const seconds = Math.floor((now - date) / 1000);
-      
+
       const intervals = {
         año: 31536000,
         mes: 2592000,
@@ -164,14 +191,14 @@ restApp.get('/api/chat/conversations/:user_id', async (req, res) => {
         hora: 3600,
         minuto: 60
       };
-      
+
       for (const [unit, secondsInUnit] of Object.entries(intervals)) {
         const interval = Math.floor(seconds / secondsInUnit);
         if (interval >= 1) {
           return `Hace ${interval} ${unit}${interval !== 1 ? 's' : ''}`;
         }
       }
-      
+
       return 'Hace unos segundos';
     };
     
@@ -181,7 +208,7 @@ restApp.get('/api/chat/conversations/:user_id', async (req, res) => {
         id: conv.other_user_id,
         nombre: conv.other_user_nombre,
         email: conv.other_user_email,
-        image_url: `http://localhost:8080/storage/${conv.other_user_image_url}`,
+        image_url: `${IMAGE_BASE_URL}/${conv.other_user_image_url}`,
       },
       last_message: conv.last_message_content ? {
         id: conv.last_message_id,
@@ -216,7 +243,7 @@ restApp.get('/api/chat/conversations/:user_id', async (req, res) => {
 });
 
 // Nuevo endpoint para verificar estado de usuario
-restApp.get('/api/chat/checkUserStatus', async (req, res) => {
+app.get('/api/chat/checkUserStatus', async (req, res) => {
   try {
     const userId = req.query.user_id;
     if (!userId) {
@@ -355,7 +382,7 @@ function formatMessage(m) {
   };
 };
 
-restApp.post('/api/chat/ofertar', async (req, res) => {
+app.post('/api/chat/ofertar', async (req, res) => {
   try {
     const { publicacion, mensaje, ofertador, precio } = req.body;
 
@@ -467,7 +494,7 @@ restApp.post('/api/chat/ofertar', async (req, res) => {
   }
 });
 
-restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
+app.post('/api/chat/oferta/aceptar', async (req, res) => {
   let connection;
   try {   
     const { oferta_id, comprador_id, vendedor_id, publicacion_id, precio } = req.body;
@@ -635,7 +662,7 @@ restApp.post('/api/chat/oferta/aceptar', async (req, res) => {
   }
 });
 
-restApp.post('/api/chat/oferta/rechazar', async (req, res) => {
+app.post('/api/chat/oferta/rechazar', async (req, res) => {
   let connection;
   try {
     const { oferta_id, comprador_id, vendedor_id, publicacion_id, precio } = req.body;
@@ -732,7 +759,7 @@ restApp.post('/api/chat/oferta/rechazar', async (req, res) => {
   }
 });
 
-restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) => {
+app.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) => {
   try {
     const conversationId = parseInt(req.params.conversation_id);
     const userId = parseInt(req.query.user_id);
@@ -817,7 +844,7 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
             talle: oferta.talle,
             tipo: oferta.tipo,
             ubicacion: oferta.ubicacion,
-            imagen_url: oferta.imagen_url ? `http://localhost:8080/storage/${oferta.imagen_url}` : null,
+            imagen_url: oferta.imagen_url ? `${IMAGE_BASE_URL}/${oferta.imagen_url}` : null,
             estado_id: oferta.estado_publicacion,
           }
         });
@@ -829,7 +856,7 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
       success: true,
       conversation_id: conversationId,
       other_user: otherUserData[0] || null,
-      image_url: `http://localhost:8080/storage/${otherUserData[0].image_url}`,
+      image_url: `${IMAGE_BASE_URL}/${otherUserData[0].image_url}`,
       messages: messages.map(m => ({
         id: m.id,
         content: m.content,
@@ -853,7 +880,7 @@ restApp.get('/api/chat/obtenerConversation/:conversation_id', async (req, res) =
   }
 });
 
-restApp.post('/api/chat/marcarComoLeido', async (req, res) => {
+app.post('/api/chat/marcarComoLeido', async (req, res) => {
   try {
     const { conversation_id, user_id } = req.body;
 
@@ -906,7 +933,7 @@ restApp.post('/api/chat/marcarComoLeido', async (req, res) => {
   }
 });
 
-restApp.post('/api/chat/notificar-venta', async (req, res) => {
+app.post('/api/chat/notificar-venta', async (req, res) => {
   const { comprador_id, vendedor_id, publicacion_id } = req.body;
 
   io.to(`user_${comprador_id}`).emit('venta_finalizada', {
@@ -927,7 +954,7 @@ restApp.post('/api/chat/notificar-venta', async (req, res) => {
 // ==============================================
 
 // Middleware para manejar rutas no encontradas
-restApp.use((req, res) => {
+app.use((req, res) => {
   res.status(404).json({
     success: false,
     error: 'Endpoint no encontrado',
@@ -936,8 +963,7 @@ restApp.use((req, res) => {
   });
 });
 
-// Middleware para manejar errores
-restApp.use((err, req, res, next) => {
+app.use((err, req, res, next) => {
   console.error('Error interno:', err);
   res.status(500).json({
     success: false,
@@ -948,39 +974,25 @@ restApp.use((err, req, res, next) => {
 // ==============================================
 // CONFIGURACIÓN DE WEBSOCKET (opcional)
 // ==============================================
-
-const io = new Server(restServer, {  
-  cors: {
-    origin: ["http://localhost:3000", "https://vintageclothesarg.com", "https://dev.vintageclothesarg.com"],
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  transports: ['websocket', 'polling'] 
-});
-
 io.on('connection', async (socket) => {
   console.log('✅ Cliente WebSocket conectado:', socket.id);
-  
-  // 1. Verificar y obtener userId desde el handshake
+
   const { userId } = socket.handshake.query;
   if (!userId) return socket.disconnect();
 
-  // 2. Registrar usuario como conectado en Redis
   try {
     await redisClient.sAdd('onlineUsers', userId);
-    await redisClient.hSet('userSockets', userId, socket.id); // Guardar relación userId → socket.id
-    
-    // 3. Notificar a todos los usuarios actualizados
+    await redisClient.hSet('userSockets', userId, socket.id);
+
     const onlineUsers = await redisClient.sMembers('onlineUsers');
     io.emit('onlineUsers', onlineUsers);
-    
+
     console.log(`👤 Usuario ${userId} conectado. Online: ${onlineUsers.length}`);
   } catch (err) {
     console.error('Error en Redis al conectar:', err);
     return socket.disconnect();
   }
 
-  // 4. Emitir estado de conexión al cliente
   socket.emit('connection_status', { 
     status: 'connected',
     socketId: socket.id,
@@ -988,137 +1000,102 @@ io.on('connection', async (socket) => {
     timestamp: new Date().toISOString()
   });
 
-  // 5. Manejar suscripción a canales privados
   socket.on('subscribe', (channel) => {
     socket.join(`user_${channel}`);
     console.log(`👂 Usuario ${userId} suscrito a ${channel}`);
   });
 
-  // 6. Manejar envío de mensajes (con verificación de usuario conectado)
   socket.on('send_message', async (data, callback) => {
     try {
+      if (!data.conversation_id || !data.emisor_id || !data.content || !data.receptor_id) {
+        return callback({ status: 'error', error: 'Faltan datos en el mensaje' });
+      }
 
-      // Verificar si el receptor está conectado
       const isReceiverOnline = await redisClient.sIsMember('onlineUsers', String(data.receptor_id));
-      
-      // 1. Guardar mensaje en DB
-      const [message] = await db.query(`
-        INSERT INTO chat_messages 
-        (conversation_id, emisor_id, content, created_at) 
-        VALUES (?, ?, ?, NOW())
-      `, [data.conversation_id, data.emisor_id, data.content]);
 
-      // 2. Obtener datos completos del mensaje
-      const [completeMessage] = await db.query(`
-        SELECT m.*, u.nombre as emisor_nombre 
-        FROM chat_messages m
-        JOIN users u ON m.emisor_id = u.id
-        WHERE m.id = ?
-          AND m.deleted_at IS NULL
-      `, [message.insertId]);
-      
+      const [message] = await db.query(
+        `INSERT INTO chat_messages (conversation_id, emisor_id, content, created_at) VALUES (?, ?, ?, NOW())`,
+        [data.conversation_id, data.emisor_id, data.content]
+      );
+
+      const [completeMessage] = await db.query(
+        `SELECT m.*, u.nombre as emisor_nombre FROM chat_messages m JOIN users u ON m.emisor_id = u.id WHERE m.id = ? AND m.deleted_at IS NULL`,
+        [message.insertId]
+      );
+
       const mensajeFormateado = formatMessage(completeMessage[0]);
 
       io.to(`user_${data.receptor_id}`).emit('new_message', mensajeFormateado);
       io.to(`user_${data.emisor_id}`).emit('new_message', mensajeFormateado);
-
       io.to(`user_${data.receptor_id}`).emit('update_conversations');
 
-      // 4. Confirmar al emisor
-      callback({ 
-        status: 'success', 
-        message: completeMessage[0],
-        receiverOnline: isReceiverOnline 
-      });
-      
+      callback({ status: 'success', message: completeMessage[0], receiverOnline: isReceiverOnline });
     } catch (error) {
       console.error('Error al enviar mensaje:', error);
       callback({ status: 'error', error: error.message });
     }
-  });  
+  });
 
-  // 7. Manejar lectura de mensajes
   socket.on('messages_read', async ({ conversation_id, user_id }) => {
     try {
-      // 1. Marcar en DB los mensajes como leídos (los del otro usuario)
-      await db.query(`
-        UPDATE chat_messages 
-        SET read_at = NOW()
-        WHERE conversation_id = ? AND emisor_id != ? AND read_at IS NULL
-      `, [conversation_id, user_id]);
-  
-      // 2. Obtener IDs de los mensajes actualizados
-      const [leidos] = await db.query(`
-        SELECT id FROM chat_messages 
-        WHERE conversation_id = ? AND emisor_id != ? AND read_at IS NOT NULL
-      `, [conversation_id, user_id]);
-  
+      await db.query(
+        `UPDATE chat_messages SET read_at = NOW() WHERE conversation_id = ? AND emisor_id != ? AND read_at IS NULL`,
+        [conversation_id, user_id]
+      );
+
+      const [leidos] = await db.query(
+        `SELECT id FROM chat_messages WHERE conversation_id = ? AND emisor_id != ? AND read_at IS NOT NULL`,
+        [conversation_id, user_id]
+      );
+
       const message_ids = leidos.map(m => m.id);
-  
-      // 3. Emitir evento al emisor para que marque como leídos
-      const [conv] = await db.query(`
-        SELECT emisor_id, receptor_id FROM chat_conversations 
-        WHERE id = ?
-      `, [conversation_id]);
-  
+
+      const [conv] = await db.query(
+        `SELECT emisor_id, receptor_id FROM chat_conversations WHERE id = ?`,
+        [conversation_id]
+      );
+
       const emisorId = conv[0].emisor_id === user_id ? conv[0].receptor_id : conv[0].emisor_id;
-  
-      io.to(`user_${emisorId}`).emit('messages_read', { 
-        message_ids, 
-        conversation_id 
-      });
-      
+
+      io.to(`user_${emisorId}`).emit('messages_read', { message_ids, conversation_id });
     } catch (err) {
       console.error('❌ Error al manejar messages_read:', err);
     }
-  });  
-  
-  // 9. Revisar si un usuario esta online
+  });
+
   socket.on('get_online_users', async () => {
     try {
       const onlineUsers = await redisClient.sMembers('onlineUsers');
-      socket.emit('onlineUsers', onlineUsers); // Solo a quien lo pidió
+      socket.emit('onlineUsers', onlineUsers);
     } catch (err) {
       console.error('Error al obtener usuarios online:', err);
     }
   });
 
-  // 10. Manejar desconexión
+  let heartbeatInterval = setInterval(async () => {
+    try {
+      await redisClient.sAdd('onlineUsers', userId);
+    } catch (err) {
+      clearInterval(heartbeatInterval);
+    }
+  }, 25000);
+
   socket.on('disconnect', async () => {
+    clearInterval(heartbeatInterval);
     try {
       await redisClient.sRem('onlineUsers', userId);
       await redisClient.hDel('userSockets', userId);
-      
+
       const onlineUsers = await redisClient.sMembers('onlineUsers');
       io.emit('onlineUsers', onlineUsers);
-      
+
       console.log(`❌ Usuario ${userId} desconectado. Online: ${onlineUsers.length}`);
     } catch (err) {
       console.error('Error en Redis al desconectar:', err);
     }
   });
-
-  // 8. Heartbeat para detectar conexiones caídas
-  let heartbeatInterval = setInterval(async () => {
-    try {
-      await redisClient.sAdd('onlineUsers', userId); // Renovar registro
-    } catch (err) {
-      clearInterval(heartbeatInterval);
-    }
-  }, 25000); // Cada 25 segundos
-
-  socket.on('disconnect', () => {
-    clearInterval(heartbeatInterval);
-  });
 });
 
-// ==============================================
-// INICIAR SERVIDORES
-// ==============================================
-
-restServer.listen(REST_PORT, '0.0.0.0', () => {
+httpServer.listen(REST_PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor combinado (REST + WS) en puerto ${REST_PORT}`);
-  console.log(`📡 Endpoints REST disponibles:`);
-  console.log(`- http://localhost:${REST_PORT}/api/conversations/:user_id`);
-  console.log(`🎧 WebSocket disponible en ws://localhost:${REST_PORT}`);
 });

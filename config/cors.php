@@ -8,6 +8,7 @@ return [
 
     'allowed_origins' => [
         'https://vintageclothesarg.com',
+        'https://dev.vintageclothesarg.com',
         'http://localhost:3000',
         'http://127.0.0.1:3000',
     ],
@@ -22,3 +23,4 @@ return [
 
     'supports_credentials' => true,
 ];
+

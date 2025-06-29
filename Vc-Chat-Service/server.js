@@ -22,7 +22,7 @@ const restServer = createServer(restApp);
 
 // Configuración CORS
 restApp.use(cors({
-  origin: "http://localhost:3000",
+  origin: ["http://localhost:3000", "https://vintageclothesarg.com", "https://dev.vintageclothesarg.com"],
   methods: ["GET", "POST"],
   credentials: true
 }));
@@ -69,7 +69,7 @@ restApp.get('/api/connection-check', (req, res) => {
 });
 
 // Endpoint corregido para conversaciones (CON LA "S")
-restApp.get('/api/conversations/:user_id', async (req, res) => {
+restApp.get('/api/chat/conversations/:user_id', async (req, res) => {
   try {
     const userId = parseInt(req.params.user_id);
     
@@ -906,7 +906,7 @@ restApp.post('/api/chat/marcarComoLeido', async (req, res) => {
   }
 });
 
-restApp.post('/api/notificar-venta', async (req, res) => {
+restApp.post('/api/chat/notificar-venta', async (req, res) => {
   const { comprador_id, vendedor_id, publicacion_id } = req.body;
 
   io.to(`user_${comprador_id}`).emit('venta_finalizada', {
@@ -951,7 +951,7 @@ restApp.use((err, req, res, next) => {
 
 const io = new Server(restServer, {  
   cors: {
-    origin: "http://localhost:3000",
+    origin: ["http://localhost:3000", "https://vintageclothesarg.com", "https://dev.vintageclothesarg.com"],
     methods: ["GET", "POST"],
     credentials: true
   },

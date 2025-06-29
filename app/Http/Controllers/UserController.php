@@ -340,7 +340,7 @@ class UserController extends Controller
         ];
     
         foreach ($reseñas as $reseña) {
-            $comentador = User::find($reseña->id_comentador)->with(['imagenProfile']);
+            $comentador = User::with('imagenProfile')->find($reseña->id_comentador);
         
             if ($comentador) {
                 if ($comentador->imagenProfile) {

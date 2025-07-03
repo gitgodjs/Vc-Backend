@@ -68,7 +68,7 @@ module.exports = {
     {
       name: 'webhook-listener',
       cwd: '/home/webhook-listener',
-      script: 'index.js',
+      script: 'server.js',
       instances: 1,
       autorestart: true,
       watch: false,

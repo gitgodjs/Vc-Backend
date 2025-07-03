@@ -22,7 +22,7 @@ module.exports = {
     {
       name: 'dev-frontend',
       cwd: '/home/vintageclothesarg-dev',
-      script: 'bash',
+      script: './start.sh',
       args: '-c "\
         echo [dev-frontend] Iniciando; \
         if [ ! -d .next ]; then \
@@ -45,7 +45,7 @@ module.exports = {
     {
       name: 'frontend',
       cwd: '/home/vc-frontend',
-      script: 'bash',
+      script: './start.sh',
       args: '-c "\
         echo [frontend] Iniciando; \
         if [ ! -d .next ]; then \

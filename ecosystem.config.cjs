@@ -1,5 +1,6 @@
 module.exports = {
   apps: [
+    // WebSocket del chat
     {
       name: 'chat-ws',
       cwd: '/home/vc-backend/Vc-Chat-Service',
@@ -16,30 +17,54 @@ module.exports = {
       out_file: '/root/.pm2/logs/chat-ws-out.log',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
     },
+
+    // Frontend de desarrollo
     {
       name: 'dev-frontend',
       cwd: '/home/vintageclothesarg-dev',
-      script: 'npm',
-      args: 'run start',
+      script: 'bash',
+      args: '-c "\
+        echo [dev-frontend] Iniciando; \
+        if [ ! -d .next ]; then \
+          echo [dev-frontend] No existe .next, corriendo build...; \
+          npm install && npm run build || { echo [dev-frontend] Falló el build; exit 1; }; \
+        fi; \
+        echo [dev-frontend] Build listo. Ejecutando next dev; \
+        npm run dev"',
       env: {
         NODE_ENV: 'development',
         PORT: 3006,
       },
       autorestart: true,
       watch: false,
+      max_restarts: 3,
+      restart_delay: 10000,
     },
+
+    // Frontend de producción
     {
       name: 'frontend',
       cwd: '/home/vc-frontend',
-      script: 'npm',
-      args: 'run start',
+      script: 'bash',
+      args: '-c "\
+        echo [frontend] Iniciando; \
+        if [ ! -d .next ]; then \
+          echo [frontend] No existe .next, corriendo build...; \
+          npm install && npm run build || { echo [frontend] Falló el build; exit 1; }; \
+        fi; \
+        echo [frontend] Build listo. Ejecutando next start; \
+        npm run start"',
       env: {
         NODE_ENV: 'production',
         PORT: 3002,
       },
       autorestart: true,
       watch: false,
+      max_restarts: 3,
+      restart_delay: 10000,
     },
+
+    // Webhook listener
     {
       name: 'webhook-listener',
       cwd: '/home/webhook-listener',
@@ -54,5 +79,3 @@ module.exports = {
     },
   ],
 };
-
-

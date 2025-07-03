@@ -23,14 +23,6 @@ module.exports = {
       name: 'dev-frontend',
       cwd: '/home/vintageclothesarg-dev',
       script: './start.sh',
-      args: '-c "\
-        echo [dev-frontend] Iniciando; \
-        if [ ! -d .next ]; then \
-          echo [dev-frontend] No existe .next, corriendo build...; \
-          npm install && npm run build || { echo [dev-frontend] Falló el build; exit 1; }; \
-        fi; \
-        echo [dev-frontend] Build listo. Ejecutando next dev; \
-        npm run dev"',
       env: {
         NODE_ENV: 'development',
         PORT: 3006,
@@ -46,14 +38,6 @@ module.exports = {
       name: 'frontend',
       cwd: '/home/vc-frontend',
       script: './start.sh',
-      args: '-c "\
-        echo [frontend] Iniciando; \
-        if [ ! -d .next ]; then \
-          echo [frontend] No existe .next, corriendo build...; \
-          npm install && npm run build || { echo [frontend] Falló el build; exit 1; }; \
-        fi; \
-        echo [frontend] Build listo. Ejecutando next start; \
-        npm run start"',
       env: {
         NODE_ENV: 'production',
         PORT: 3002,

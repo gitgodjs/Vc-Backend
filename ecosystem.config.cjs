@@ -24,7 +24,7 @@ module.exports = {
       cwd: '/home/vintageclothesarg-dev',
       script: './start.sh',
       env: {
-        NODE_ENV: 'development',
+        NODE_ENV: 'production',
         PORT: 3006,
       },
       autorestart: true,

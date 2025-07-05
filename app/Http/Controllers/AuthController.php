@@ -49,7 +49,7 @@ class AuthController extends Controller
             UserPlan::create([
                 'user_id'                 => $user->id,
                 'plan_id'                 => 1,
-                'publicaciones_disponibles' => 5,
+                'publicaciones_disponibles' => 15,
                 'impulsos_disponibles'      => 0,
                 'fecha_compra'              => now(),
                 'fecha_vencimiento'         => now()->addMonths(12),

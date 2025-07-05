@@ -84,7 +84,7 @@ class PlanesController extends Controller
             $planActual = UserPlan::create([
                 'user_id' => $user->id,
                 'plan_id' => 1, // Plan básico
-                'publicaciones_disponibles' => 5,
+                'publicaciones_disponibles' => 15,
                 'impulsos_disponibles' => 0,
                 'fecha_compra' => now(),
                 'fecha_vencimiento' => now()->addMonths(12),
@@ -130,7 +130,7 @@ class PlanesController extends Controller
         $vencimientoPlan = now()->addYear();
         $planActual->update([
             'plan_id' => 1,
-            'publicaciones_disponibles' => 5,
+            'publicaciones_disponibles' => 15,
             'impulsos_disponibles' => 0,
             'fecha_compra' => now(),
             'fecha_vencimiento' => $vencimientoPlan,

@@ -150,14 +150,25 @@ class UserController extends Controller
 
     public function completarPerfil(Request $request) {
         $user = auth()->user();
-        if(!$user){
+        
+        if (!$user) {
             return response()->json([
                 "mensaje" => "Usuario inexistente",
-            ]);
-        };
-
+            ], 404);
+        }
+    
+        $usernameExistente = User::where('username', $request->userName)
+            ->where('id', '!=', $user->id) 
+            ->exists();
+    
+        if ($usernameExistente) {
+            return response()->json([
+                "mensaje" => "El nombre de usuario ya está en uso. Por favor elige otro.",
+            ], 422); 
+        }
+    
         $fechaNacimiento = Carbon::parse($request->fecha_nacimiento);
-
+    
         $user->update([
             'username' => $request->userName,
             'nombre' => $request->name,
@@ -168,14 +179,12 @@ class UserController extends Controller
             'telefono' => $request->telefono,
             'genero' => $request->genero,
         ]);
-        
-        $user->save();
-
+    
         return response()->json([
             'mensaje' => 'Perfil actualizado correctamente',
             'data' => $user,
         ]);
-    }
+    }    
 
     public function actualizarTallasUser(Request $request) 
     {
@@ -264,32 +273,37 @@ class UserController extends Controller
 
     public function getUsers(Request $request, $page) {
         $user = auth()->user();
-        
-        if(!$user) {
-            return response()->json(["mensaje" => "Usuario no encontrado"], 404);
-        };
     
-        $query = User::whereNotNull('username');
-
+        if (!$user) {
+            return response()->json(["mensaje" => "Usuario no encontrado"], 404);
+        }
+    
+        // Excluir al usuario autenticado
+        $query = User::whereNotNull('username')
+            ->where('id', '!=', $user->id);
+    
         if ($request->has('search') && !empty($request->search)) {
             $searchTerm = trim($request->search);
             $query->where(function ($q) use ($searchTerm) {
                 $q->where('username', 'LIKE', $searchTerm . '%') 
-                ->orWhere('nombre', 'LIKE', '%' . $searchTerm . '%');
+                  ->orWhere('nombre', 'LIKE', '%' . $searchTerm . '%');
             });
-        };
+        }
     
         $perPage = 10;
+    
         $users = $query->with(['imagenProfile'])
+            ->inRandomOrder()
             ->paginate($perPage, ['*'], 'page', $page);
-        
+    
         return response()->json([
-            "mensaje" => "usuarios obtenidos con exito",
+            "mensaje" => "usuarios obtenidos con éxito",
             "users" => $users->items(),
             "hasMore" => $users->hasMorePages(),
             "usersTotales" => $users->total(),
         ]);
     }
+    
 
     public function borrarCuenta(Request $request, $user_id) {
         $user = User::find($user_id);

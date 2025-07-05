@@ -354,40 +354,37 @@ class UserController extends Controller
         ];
     
         foreach ($reseñas as $reseña) {
-            $comentador = User::find($reseña->id_comentador);
-
-            if ($comentador->imagenProfile) {
-                $comentador->foto_perfil_url = $baseUrl . "/storage/" . $comentador->imagenProfile->url;
-            };
-            // Actualizamos promedios
+            $comentador = User::with('imagenProfile')->find($reseña->id_comentador);
+        
+            if ($comentador) {
+                if ($comentador->imagenProfile) {
+                    $comentador->foto_perfil_url = $baseUrl . "/storage/" . $comentador->imagenProfile->url;
+                }
+        
+                $resultado[] = [
+                    'id' => $reseña->id,
+                    'user' => $comentador->username,
+                    'user_image' => $comentador->foto_perfil_url ?? null,
+                    'date' => $reseña->created_at->diffForHumans(),
+                    'comment' => $reseña->comentario,
+                    'rating' => $reseña->rate_general,
+                ];
+            }
+        
+            // Actualizamos promedios y clasificaciones solo si hay comentador
             $sumaGeneral += $reseña->rate_general;
             $sumaCalidadPrecio += $reseña->rate_calidad_precio;
             $sumaAtencion += $reseña->rate_atencion;
             $sumaFlexibilidad += $reseña->rate_flexibilidad;
-    
-            // Clasificación
+        
             switch ($reseña->rate_general) {
-                case 5:
-                    $breakdown["Excelente"]++; break;
-                case 4:
-                    $breakdown["Muy bueno"]++; break;
-                case 3:
-                    $breakdown["Regular"]++; break;
-                case 2:
-                    $breakdown["Malo"]++; break;
-                case 1:
-                    $breakdown["Muy malo"]++; break;
+                case 5: $breakdown["Excelente"]++; break;
+                case 4: $breakdown["Muy bueno"]++; break;
+                case 3: $breakdown["Regular"]++; break;
+                case 2: $breakdown["Malo"]++; break;
+                case 1: $breakdown["Muy malo"]++; break;
             }
-    
-            $resultado[] = [
-                'id' => $reseña->id,
-                'user' => $comentador->username,
-                'user_image' => $comentador->foto_perfil_url != null ? $comentador->foto_perfil_url : null, 
-                'date' => $reseña->created_at->diffForHumans(),
-                'comment' => $reseña->comentario,
-                'rating' => $reseña->rate_general,
-            ];
-        }
+        }        
     
         return response()->json([
             "mensaje" => "Reseñas obtenidas con éxito",

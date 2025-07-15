@@ -66,10 +66,10 @@ Route::prefix('publicaciones')->group(function () {
     // Home
     Route::post('getPublicacionesRecomendadas/{page}', [PublicacionesController::class, 'getPublicacionesRecomendadas']);
     Route::post('getPublicacionesGuardadas/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadas']);
-    Route::post('getPublicacionesExplorar/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
+    Route::post('getPublicacionesExplorar/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
 
     // Perfil
-    Route::post('getPublicacionesUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
+    Route::post('getPublicacionesUser/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
     Route::post('getVentasUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getVentasUser']);
     Route::get('getPublicacionesGuardadasProfile/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
     Route::get('getPublicacionesEnVenta/{page}', [PublicacionesController::class, 'getPublicacionesEnVenta']);
@@ -80,7 +80,7 @@ Route::prefix('publicaciones')->group(function () {
     Route::post('getPublicacionesFiltro', [PublicacionesController::class, 'getPublicacionesFiltro']);
 
     // Detalle y acciones
-    Route::get('getPublicacion/{user_id}/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
+    Route::get('getPublicacion/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
     Route::post('guardados/{publicacion_id}', [PublicacionesController::class, 'guardadosPublicacion']);
     Route::post('finalizarConCalificacion/{publicacion_id}/{comprador?}', [PublicacionesController::class, 'finalizarConCalificacion']);
     Route::post('eliminarOferta', [PublicacionesController::class, 'eliminarOferta']);

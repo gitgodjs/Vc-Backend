@@ -66,21 +66,15 @@ Route::prefix('publicaciones')->group(function () {
     // Home
     Route::post('getPublicacionesRecomendadas/{page}', [PublicacionesController::class, 'getPublicacionesRecomendadas']);
     Route::post('getPublicacionesGuardadas/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadas']);
-    Route::post('getPublicacionesExplorar/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
 
     // Perfil
-    Route::post('getPublicacionesUser/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
     Route::post('getVentasUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getVentasUser']);
     Route::get('getPublicacionesGuardadasProfile/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
     Route::get('getPublicacionesEnVenta/{page}', [PublicacionesController::class, 'getPublicacionesEnVenta']);
     Route::get('getPublicacionesEnCompra/{page}', [PublicacionesController::class, 'getPublicacionesEnCompra']);
     Route::get('getPublicacionesCompradas/{page}', [PublicacionesController::class, 'getPublicacionesCompradas']);
 
-    // Buscador
-    Route::post('getPublicacionesFiltro', [PublicacionesController::class, 'getPublicacionesFiltro']);
-
     // Detalle y acciones
-    Route::get('getPublicacion/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
     Route::post('guardados/{publicacion_id}', [PublicacionesController::class, 'guardadosPublicacion']);
     Route::post('finalizarConCalificacion/{publicacion_id}/{comprador?}', [PublicacionesController::class, 'finalizarConCalificacion']);
     Route::post('eliminarOferta', [PublicacionesController::class, 'eliminarOferta']);
@@ -151,4 +145,13 @@ Route::middleware('jwt.auth')->prefix('notificacion')->group(function () {
     Route::post('aceptaste-oferta', [NotificacionesController::class, 'AceptasteOferta']);
     Route::post('oferta-aceptada', [NotificacionesController::class, 'OfertaAceptada']);
     Route::post('oferta-rechazada', [NotificacionesController::class, 'OfertaRechazada']);
+});
+
+Route::middleware('jwt.optional')->group(function () {
+    Route::post('publicaciones/getPublicacionesExplorar/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
+    Route::get('publicaciones/getPublicacion/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
+    Route::post('publicaciones/getPublicacionesUser/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
+    
+    // Buscador
+    Route::post('publicaciones/getPublicacionesFiltro', [PublicacionesController::class, 'getPublicacionesFiltro']);
 });

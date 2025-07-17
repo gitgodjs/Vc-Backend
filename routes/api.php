@@ -68,7 +68,6 @@ Route::prefix('publicaciones')->group(function () {
     Route::post('getPublicacionesGuardadas/{user_id}/{page}', [PublicacionesController::class, 'getPublicacionesGuardadas']);
 
     // Perfil
-    Route::post('getVentasUser/{user_id}/{userProfile_id}/{page}', [PublicacionesController::class, 'getVentasUser']);
     Route::get('getPublicacionesGuardadasProfile/{page}', [PublicacionesController::class, 'getPublicacionesGuardadasProfile']);
     Route::get('getPublicacionesEnVenta/{page}', [PublicacionesController::class, 'getPublicacionesEnVenta']);
     Route::get('getPublicacionesEnCompra/{page}', [PublicacionesController::class, 'getPublicacionesEnCompra']);
@@ -151,7 +150,8 @@ Route::middleware('jwt.optional')->group(function () {
     Route::post('publicaciones/getPublicacionesExplorar/{page}', [PublicacionesController::class, 'getPublicacionesExplorar']);
     Route::get('publicaciones/getPublicacion/{publicacion_id}', [PublicacionesController::class, 'getPublicacion']);
     Route::post('publicaciones/getPublicacionesUser/{userProfile_id}/{page}', [PublicacionesController::class, 'getPublicacionesUser']);
-    
+    Route::post('publicaciones/getVentasUser/{userProfile_id}/{page}', [PublicacionesController::class, 'getVentasUser']);
+
     // Buscador
     Route::post('publicaciones/getPublicacionesFiltro', [PublicacionesController::class, 'getPublicacionesFiltro']);
 });

@@ -302,7 +302,7 @@ class PublicacionesController extends Controller
         ], 200);
     }    
     
-    public function getVentasUser($user_id, $userProfile_id, $page) {
+    public function getVentasUser($userProfile_id, $page) {
         $limit = 20;
         $userProfile = User::find($userProfile_id);
     
@@ -312,7 +312,7 @@ class PublicacionesController extends Controller
             ], 404); 
         }
     
-        $user = User::find($user_id);
+        $user = auth()->user();
         $offset = ($page - 1) * $limit;
     
         // Solo publicaciones con estado_publicacion igual a 3 (vendidas)

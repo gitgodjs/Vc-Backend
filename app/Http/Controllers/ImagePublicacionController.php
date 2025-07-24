@@ -15,42 +15,31 @@ class ImagePublicacionController extends Controller
      * ------------------------------------------------------------ */
     public function updateImage(Request $request, $publicacion_id)
     {
-        /* -----------------------------------------------------------
-        * 1. Verificaciones básicas
-        * --------------------------------------------------------- */
         $user = auth()->user();
         if (!$user) {
             return response()->json(['message' => 'Usuario no encontrado'], 404);
         }
-
+    
         $publicacion = Publicacion::find($publicacion_id);
         if (!$publicacion) {
             return response()->json(['message' => 'Publicación no encontrada'], 404);
         }
-
-        /* -----------------------------------------------------------
-        * 2. Debe venir al menos un archivo en publicacionPicture[]
-        * --------------------------------------------------------- */
+    
         if (!$request->hasFile('publicacionPicture')) {
-            return response()->json(['message' => 'No se encontraron imágenes'], 400);
+            return response()->json(['message' => 'No se encontraron imágenes nuevas, se mantiene las existentes'], 200);
         }
-
+    
         try {
-            /* -------------------------------------------------------
-            * 3. Borrar imágenes anteriores **una sola vez**
-            * ----------------------------------------------------- */
+            // 🔁 Borrar solo si hay nuevas
             ImagePublicacion::where('id_publicacion', $publicacion_id)->each(function ($img) {
-                Storage::disk('public')->delete($img->url); // delete() ya verifica existencia
+                Storage::disk('public')->delete($img->url);
                 $img->delete();
             });
-
-            /* -------------------------------------------------------
-            * 4. Procesar y guardar todas las imágenes recibidas
-            * ----------------------------------------------------- */
+    
             foreach ($request->file('publicacionPicture') as $imageFile) {
-                $filename     = 'image_publicacion_' . now()->timestamp . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
-                $relativePath = $imageFile->storeAs('images_publicaciones', $filename, 'public'); // devuelve path relativo
-
+                $filename = 'image_publicacion_' . now()->timestamp . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
+                $relativePath = $imageFile->storeAs('images_publicaciones', $filename, 'public');
+    
                 ImagePublicacion::create([
                     'id_usuario'     => $publicacion->id_user,
                     'id_publicacion' => $publicacion_id,
@@ -60,9 +49,8 @@ class ImagePublicacionController extends Controller
                     'extension'      => $imageFile->getClientOriginalExtension(),
                 ]);
             }
-
+    
             return response()->json(['message' => 'Imágenes actualizadas con éxito'], 200);
-
         } catch (\Throwable $e) {
             return response()->json([
                 'message' => 'Error al actualizar las imágenes',
@@ -70,6 +58,7 @@ class ImagePublicacionController extends Controller
             ], 500);
         }
     }
+    
 
     /* -------------------------------------------------------------
      * Obtener imagen de perfil o portada de un usuario

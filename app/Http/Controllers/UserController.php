@@ -166,18 +166,13 @@ class UserController extends Controller
                 "mensaje" => "El nombre de usuario ya está en uso. Por favor elige otro.",
             ], 422); 
         }
-    
-        $fechaNacimiento = Carbon::parse($request->fecha_nacimiento);
-    
+
         $user->update([
             'username' => $request->userName,
             'nombre' => $request->name,
             'descripcion' => $request->descripcion,
             'red_social' => $request->red_social != null ? $request->red_social : null,
-            'fecha_nacimiento' => $request->fecha_nacimiento, 
             'ubicacion' => $request->ciudad,
-            'telefono' => $request->telefono,
-            'genero' => $request->genero,
         ]);
     
         return response()->json([

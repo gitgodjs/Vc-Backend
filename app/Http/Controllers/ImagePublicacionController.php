@@ -16,49 +16,40 @@ class ImagePublicacionController extends Controller
     public function updateImage(Request $request, $publicacion_id)
     {
         $user = auth()->user();
-        if (!$user) {
-            return response()->json(['message' => 'Usuario no encontrado'], 404);
-        }
-    
+        if (!$user) return response()->json(['message' => 'Usuario no encontrado'], 404);
+
         $publicacion = Publicacion::find($publicacion_id);
-        if (!$publicacion) {
-            return response()->json(['message' => 'Publicación no encontrada'], 404);
-        }
-    
-        if (!$request->hasFile('publicacionPicture')) {
-            return response()->json(['message' => 'No se encontraron imágenes nuevas, se mantiene las existentes'], 200);
-        }
-    
-        try {
-            // 🔁 Borrar solo si hay nuevas
-            ImagePublicacion::where('id_publicacion', $publicacion_id)->each(function ($img) {
+        if (!$publicacion) return response()->json(['message' => 'Publicación no encontrada'], 404);
+
+        $keepIds = json_decode($request->input('keep_ids', '[]'), true);
+
+        // Eliminar las imágenes que el usuario NO quiere conservar
+        ImagePublicacion::where('id_publicacion', $publicacion_id)
+            ->whereNotIn('id', $keepIds)
+            ->each(function ($img) {
                 Storage::disk('public')->delete($img->url);
                 $img->delete();
             });
-    
+
+        // Subir nuevas imágenes
+        if ($request->hasFile('publicacionPicture')) {
             foreach ($request->file('publicacionPicture') as $imageFile) {
                 $filename = 'image_publicacion_' . now()->timestamp . '_' . uniqid() . '.' . $imageFile->getClientOriginalExtension();
                 $relativePath = $imageFile->storeAs('images_publicaciones', $filename, 'public');
-    
+
                 ImagePublicacion::create([
-                    'id_usuario'     => $publicacion->id_user,
+                    'id_usuario' => $publicacion->id_user,
                     'id_publicacion' => $publicacion_id,
-                    'url'            => $relativePath,
-                    'tamaño'         => $imageFile->getSize(),
-                    'nombre'         => $imageFile->getClientOriginalName(),
-                    'extension'      => $imageFile->getClientOriginalExtension(),
+                    'url' => $relativePath,
+                    'tamaño' => $imageFile->getSize(),
+                    'nombre' => $imageFile->getClientOriginalName(),
+                    'extension' => $imageFile->getClientOriginalExtension(),
                 ]);
             }
-    
-            return response()->json(['message' => 'Imágenes actualizadas con éxito'], 200);
-        } catch (\Throwable $e) {
-            return response()->json([
-                'message' => 'Error al actualizar las imágenes',
-                'error'   => $e->getMessage(),
-            ], 500);
         }
-    }
-    
+
+        return response()->json(['message' => 'Imágenes actualizadas con éxito'], 200);
+    }    
 
     /* -------------------------------------------------------------
      * Obtener imagen de perfil o portada de un usuario

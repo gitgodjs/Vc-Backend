@@ -44,7 +44,7 @@ class PublicacionesController extends Controller
 
         // Obtener los detalles de la prenda, estado, tipo, etc.
         $categoria = RopaCategorias::where("category", $request->categoria["category"])->first();
-        $prenda = Prendas::where("prenda", $request->categoria["name"])->first();
+        $prenda = Prendas::where("prenda", $request->prenda["name"])->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
         $estilo = RopaEstilo::where("estilo", $request->estilo)->first();
@@ -247,7 +247,12 @@ class PublicacionesController extends Controller
             ->map(fn($img) => asset(Storage::disk('public')->url($img->url)))
             ->values()
             ->all();
-    
+        
+        $imagenesCom = $publicacion->imagenes()
+            ->orderBy('id', 'asc')
+            ->get()
+            ->values()
+            ->all();
         // Datos auxiliares de la prenda
         $estado_ropa = EstadoRopa::find($publicacion->estado_ropa);
         $prenda      = Prendas::find($publicacion->prenda);
@@ -276,6 +281,7 @@ class PublicacionesController extends Controller
             'descripcion'       => $publicacion->descripcion,
             'precio'            => $publicacion->precio,
             'imagenes'          => $imagenesUrls,
+            'imagenes_com'      => $imagenesCom,
             'estado_publicacion'=> $publicacion->estado_publicacion,
             'estado_ropa'       => $estado_ropa->estado,
             'estilo_ropa'       => $estilo->estilo ?? null,

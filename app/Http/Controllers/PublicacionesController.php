@@ -131,8 +131,8 @@ class PublicacionesController extends Controller
             ], 404);
         };
 
-        $categoria = RopaCategorias::where("category", $request->categoria["category"])->first();
-        $prenda = Prendas::where("prenda", $request->prenda["name"])->first();
+        $categoria = RopaCategorias::where("category", $request->categoria)->first();
+        $prenda = Prendas::where("prenda", $request->prenda)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
 

@@ -43,16 +43,16 @@ class PublicacionesController extends Controller
         };
 
         // Obtener los detalles de la prenda, estado, tipo, etc.
-        $categoria = RopaCategorias::where("category", $request->categoria["category"])->first();
-        $prenda = Prendas::where("prenda", $request->prenda["name"])->first();
+        $categoria = RopaCategorias::where("category", $request->categoria)->first();
+        $prenda = Prendas::where("prenda", $request->prenda)->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
         $estilo = RopaEstilo::where("estilo", $request->estilo)->first();
         
         // Contar las publicaciones del usuario
         $publicacionesCount = Publicacion::where("id_user", $user->id)->count();
-    
-        // Crear la nueva publicación
+
+        // Crear la nueva publicaciónasd
         $publicacion = Publicacion::create([
             'id_user' => $user->id, 
             'id_estilo' => $estilo->id,

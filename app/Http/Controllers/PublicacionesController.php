@@ -135,6 +135,7 @@ class PublicacionesController extends Controller
         $prenda = Prendas::where("prenda", $request->prenda)->first();
         $tipo = RopaTipo::where("tipo", $request->tipo)->first();
         $estado = EstadoRopa::where("estado", $request->estado)->first();
+        $estilo = RopaEstilo::where("estilo", $request->estilo)->first();
 
         $publicacion->update([
             'nombre' => $request->titulo,
@@ -142,6 +143,7 @@ class PublicacionesController extends Controller
             'ubicacion' => $request->ciudad,
             'precio' => $request->precio,
             'categoria' => $categoria->id,
+            'id_estilo' => $estilo->id,
             'prenda' => $prenda->id,
             'talle' => $request->talla,
             'tipo' => $tipo->id, 

@@ -22,11 +22,12 @@ class NotificacionesController extends Controller
         };
 
         $ofertado = User::find($request->ofertado_id);
+        $ofertador = User::find($request->ofertador_id);
 
         // Necesita: $request->monto, $request->prenda
         Mail::to($ofertado->correo)->send(new EmailRecibisteOferta(
-            $ofertado->correo,
             $ofertado->nombre,
+            $ofertador->nombre,
             $request->monto,
             $request->prenda
         ));
